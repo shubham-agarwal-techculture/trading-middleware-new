@@ -1,0 +1,13 @@
+For manual trade fill values for exchange_instrument_id and instrument_name and limitprice
+send through curl on bash terminal
+
+curl -X POST http: //localhost:5001/signal   -H "Content-Type: application/json"   -d '{
+"action": "BUY",
+"quantity": 65,
+"position": "long",
+"exchange_segment": "NSEFO",
+"exchange_instrument_id": 42383,
+"instrument_name": "NIFTY2660925050CE",
+"orderType": "LIMIT",
+"limitPrice": 1.90
+}'
