@@ -12,8 +12,9 @@ This repository provides a complete, end-to-end asynchronous signal-to-order exe
 3. [Component Breakdown](#component-breakdown)
    - [1. Node.js Webhook (`webhook/`)](#1-nodejs-webhook-webhook)
    - [2. Python HTTP Bridge (`oms_bridge.py`)](#2-python-http-bridge-oms_bridgepy)
-   - [3. Strategy Client (`strategy_client.py`)](#3-strategy-client-strategy_clientpy)
-   - [4. Sample Strategy (`sample_strategy.py`)](#4-sample-strategy-sample_strategypy)
+   - [3. Nifty Signal Bridge (`nifty_signal_bridge.py`)](#3-nifty-signal-bridge-nifty_signal_bridgepy)
+   - [4. Strategy Client (`strategy_client.py`)](#4-strategy-client-strategy_clientpy)
+   - [5. Sample Strategy (`sample_strategy.py`)](#5-sample-strategy-sample_strategypy)
 4. [ZeroMQ & HTTP Message Formats](#zeromq--http-message-formats)
 5. [Getting Started & Configuration](#getting-started--configuration)
    - [Prerequisites](#prerequisites)
@@ -121,13 +122,36 @@ A background service written in Python that acts as a translator between Node's 
 *   Supports order placement (with a 10s wait for ZMQ acknowledgments) and position square-offs (when `position` is `"flat"`).
 *   Applies fallback instrument defaults (e.g. NIFTY) if instrument information is omitted from the webhook.
 
-### 3. Strategy Client (`strategy_client.py`)
+### 3. Nifty Signal Bridge (`nifty_signal_bridge.py`)
+A standalone Python script that automatically resolves NIFTY 25000 CE contracts from the master data CSV and routes trade signals to the OMS:
+*   Parses `master_data/NSEFO.csv` on startup and indexes contracts by (Name, StrikePrice, OptionType) for O(1) lookups.
+*   Automatically filters for NIFTY 25000 CE (OptionType=3) contracts with expiry ≥ current date.
+*   Supports two expiry selection modes:
+  - `nearest` (default): Selects the closest active/upcoming weekly or monthly contract
+  - `furthest`: Selects the chronologically furthest expiration date
+*   Runs an HTTP server on port `5002` (configurable) with a `/signal` POST endpoint.
+*   Integrates with `OMSClient` to send PLACE_ORDER and SQUAREOFF signals using a dummy limit price (default 1.0).
+*   Waits for ZMQ `ORDER_ACK` and returns the status and `oms_order_id` in the response.
+
+**Usage**:
+```bash
+python nifty_signal_bridge.py --port 5002 --expiry-mode nearest
+```
+
+**Test Signal**:
+```bash
+curl -X POST http://localhost:5002/signal \
+  -H "Content-Type: application/json" \
+  -d '{"action": "BUY", "position": "long", "quantity": 65}'
+```
+
+### 4. Strategy Client (`strategy_client.py`)
 The underlying client library utilized by Python scripts to:
 *   Open ZMQ sockets (`PUSH` to port 5555, `SUB` to port 5556).
 *   Filter incoming execution updates by `strategy_id`.
 *   Maintain a mapping of pending futures to support async waiting blocks (`wait_for_ack`, `wait_for_open`, `wait_for_terminal`).
 
-### 4. Sample Strategy (`sample_strategy.py`)
+### 5. Sample Strategy (`sample_strategy.py`)
 A reference implementation showing how a script can programmatically interact with `OMSClient` to execute multi-step logic (e.g. place a limit order, wait for open, modify the limit price, and cancel).
 
 ---
