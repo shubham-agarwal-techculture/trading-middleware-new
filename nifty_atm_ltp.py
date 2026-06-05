@@ -352,83 +352,97 @@ class ContractLoader:
         return selected_contract
 
 
+async def get_atm_data() -> Dict[str, Any]:
+    """Get ATM option data for NIFTY.
+    
+    Returns:
+        Dict with keys:
+            - ce_instrument_id: int
+            - ce_ltp: float
+            - pe_instrument_id: int
+            - pe_ltp: float
+            - atm_strike: int
+            - ce_contract: dict
+            - pe_contract: dict
+    """
+    # Check if API credentials are set
+    if not XTS_API_KEY or not XTS_API_SECRET:
+        raise ValueError("XTS_API_KEY and XTS_API_SECRET must be set")
+
+    # Load contracts from CSV
+    loader = ContractLoader(CSV_PATH)
+
+    # Get nearest expiry futures contract
+    futures_contract = loader.get_nearest_expiry_futures()
+    if not futures_contract:
+        raise Exception("Could not find nearest expiry futures contract")
+
+    # Connect to XTS marketdata
+    client = XTSMarketDataClient(XTS_API_KEY, XTS_API_SECRET)
+    await client.connect()
+
+    # Get LTP for futures (as proxy for underlying close)
+    futures_id = int(futures_contract["ExchangeInstrumentID"])
+    futures_ltp = await client.get_ltp(
+        futures_id, futures_contract["ExchangeSegment"]
+    )
+
+    if futures_ltp is None:
+        await client.disconnect()
+        raise Exception("Could not get futures LTP")
+
+    # Get ATM CE option
+    ce_contract = loader.get_atm_options(futures_ltp, option_type="CE")
+    if not ce_contract:
+        await client.disconnect()
+        raise Exception("Could not find ATM CE contract")
+    ce_id = int(ce_contract["ExchangeInstrumentID"])
+    ce_ltp = await client.get_ltp(ce_id, ce_contract["ExchangeSegment"])
+    if ce_ltp is None:
+        await client.disconnect()
+        raise Exception("Could not get ATM CE LTP")
+
+    # Get ATM PE option
+    pe_contract = loader.get_atm_options(futures_ltp, option_type="PE")
+    if not pe_contract:
+        await client.disconnect()
+        raise Exception("Could not find ATM PE contract")
+    pe_id = int(pe_contract["ExchangeInstrumentID"])
+    pe_ltp = await client.get_ltp(pe_id, pe_contract["ExchangeSegment"])
+    if pe_ltp is None:
+        await client.disconnect()
+        raise Exception("Could not get ATM PE LTP")
+
+    atm_strike = round(futures_ltp / STRIKE_INTERVAL) * STRIKE_INTERVAL
+
+    await client.disconnect()
+
+    return {
+        "ce_instrument_id": ce_id,
+        "ce_ltp": ce_ltp,
+        "pe_instrument_id": pe_id,
+        "pe_ltp": pe_ltp,
+        "atm_strike": atm_strike,
+        "ce_contract": ce_contract,
+        "pe_contract": pe_contract,
+    }
+
+
 async def main():
     """Main entry point."""
     log.info("Starting Nifty ATM LTP Fetcher...")
 
-    # Check if API credentials are set
-    if not XTS_API_KEY or not XTS_API_SECRET:
-        log.error(
-            "XTS_API_KEY and XTS_API_SECRET must be set in the script. "
-            "Please edit the file and add your credentials."
-        )
-        return
-
     try:
-        # Load contracts from CSV
-        loader = ContractLoader(CSV_PATH)
-
-        # Get nearest expiry futures contract
-        futures_contract = loader.get_nearest_expiry_futures()
-        if not futures_contract:
-            log.error("Could not find nearest expiry futures contract")
-            return
-
-        # Connect to XTS marketdata
-        client = XTSMarketDataClient(XTS_API_KEY, XTS_API_SECRET)
-        await client.connect()
-
-        # Get LTP for futures (as proxy for underlying close)
-        futures_id = int(futures_contract["ExchangeInstrumentID"])
-        futures_ltp = await client.get_ltp(
-            futures_id, futures_contract["ExchangeSegment"]
-        )
-
-        ###########################################################
-
-        if futures_ltp is None:
-            log.error("Could not get futures LTP")
-            await client.disconnect()
-            return
-
-        log.info("Nifty50 Futures LTP: %.2f", futures_ltp)
-
-        # Get ATM CE option
-        ce_contract = loader.get_atm_options(futures_ltp, option_type="CE")
-        ce_ltp = None
-        if ce_contract:
-            ce_id = int(ce_contract["ExchangeInstrumentID"])
-            ce_ltp = await client.get_ltp(ce_id, ce_contract["ExchangeSegment"])
-            if ce_ltp is not None:
-                log.info("ATM CE LTP: %.2f", ce_ltp)
-
-        # Get ATM PE option
-        pe_contract = loader.get_atm_options(futures_ltp, option_type="PE")
-        pe_ltp = None
-        if pe_contract:
-            pe_id = int(pe_contract["ExchangeInstrumentID"])
-            pe_ltp = await client.get_ltp(pe_id, pe_contract["ExchangeSegment"])
-            if pe_ltp is not None:
-                log.info("ATM PE LTP: %.2f", pe_ltp)
+        data = await get_atm_data()
 
         # Summary
         print("\n" + "=" * 60)
         print("SUMMARY")
         print("=" * 60)
-        print(f"Underlying (Futures) LTP: {futures_ltp:.2f}")
-        print(f"ATM Strike: {round(futures_ltp / STRIKE_INTERVAL) * STRIKE_INTERVAL}")
-        if ce_ltp is not None:
-            print(f"ATM CE LTP: {ce_ltp:.2f}")
-        else:
-            print("ATM CE LTP: N/A")
-        if pe_ltp is not None:
-            print(f"ATM PE LTP: {pe_ltp:.2f}")
-        else:
-            print("ATM PE LTP: N/A")
+        print(f"ATM Strike: {data['atm_strike']}")
+        print(f"ATM CE LTP: {data['ce_ltp']:.2f}")
+        print(f"ATM PE LTP: {data['pe_ltp']:.2f}")
         print("=" * 60)
-
-        # Disconnect
-        await client.disconnect()
 
     except Exception as e:
         log.exception("Error in main:")

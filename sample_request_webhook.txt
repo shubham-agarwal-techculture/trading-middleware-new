@@ -11,3 +11,13 @@ curl -X POST http: //localhost:5001/signal   -H "Content-Type: application/json"
 "orderType": "LIMIT",
 "limitPrice": 1.90
 }'
+
+https://sporting-reach-dispersal.ngrok-free.dev
+
+curl -X POST https://sporting-reach-dispersal.ngrok-free.dev/signal \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "SELL",
+    "position": "long",
+    "quantity": 60
+  }'

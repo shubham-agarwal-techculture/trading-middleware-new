@@ -1,12 +1,8 @@
 """
 Standalone Nifty Signal Bridge
 
-This script parses master_data/NSEFO.csv to resolve NIFTY 25000 CE contracts
+This script parses master_data/NSEFO.csv to resolve NIFTY ATM option contracts
 and routes trade signals to the OMS via strategy_client.OMSClient.
-
-Expiry Selection Modes:
-- nearest: The closest active/upcoming contract (default)
-- furthest: The chronologically furthest expiration date
 
 Usage:
     python nifty_signal_bridge.py --port 5002
@@ -28,6 +24,7 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from strategy_client import OMSClient
+from nifty_atm_ltp import get_atm_data
 
 # Configuration
 STRATEGY_ID = "NIFTY_SIGNAL_BRIDGE"
@@ -35,22 +32,6 @@ OMS_PUSH = "tcp://192.168.1.26:5555"
 OMS_SUB = "tcp://192.168.1.26:5556"
 CSV_PATH = Path("master_data/NSEFO.csv")
 DEFAULT_PORT = 5002
-DUMMY_PRICE = 1.0
-
-# Expiry selection mode: "nearest" or "furthest"
-_expiry_mode = "nearest"
-
-def get_expiry_mode() -> str:
-    return _expiry_mode
-
-def set_expiry_mode(mode: str) -> None:
-    global _expiry_mode
-    _expiry_mode = mode
-
-# Target contract parameters
-TARGET_NAME = "NIFTY"
-TARGET_STRIKE = 25000
-TARGET_OPTION_TYPE = "3"  # CE (Call Option)
 
 # Setup logging
 logging.basicConfig(
@@ -60,136 +41,55 @@ logging.basicConfig(
 )
 log = logging.getLogger("NIFTY_BRIDGE")
 
-
-class ContractResolver:
-    """Resolves NIFTY 25000 CE contracts from CSV data."""
-
-    def __init__(self, csv_path: Path):
-        self.csv_path = csv_path
-        self.contract_index: Dict[Tuple[str, int, str], list] = {}
-        self.resolved_contract: Optional[Dict[str, Any]] = None
-        self._load_csv()
-
-    def _load_csv(self) -> None:
-        """Load and index the CSV file."""
-        log.info("Loading CSV file: %s", self.csv_path)
-        
-        if not self.csv_path.exists():
-            raise FileNotFoundError(f"CSV file not found: {self.csv_path}")
-
-        with open(self.csv_path, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            
-            for row in reader:
-                try:
-                    name = row["Name"]
-                    strike = int(float(row["StrikePrice"]))
-                    option_type = row["OptionType"]
-                    
-                    # Index by (Name, StrikePrice, OptionType)
-                    key = (name, strike, option_type)
-                    if key not in self.contract_index:
-                        self.contract_index[key] = []
-                    self.contract_index[key].append(row)
-                except (ValueError, KeyError) as e:
-                    continue
-
-        log.info("CSV loaded. Indexed %d contract groups.", len(self.contract_index))
-
-    def resolve_contract(self) -> Dict[str, Any]:
-        """
-        Resolve the NIFTY 25000 CE contract based on EXPIRY_MODE.
-        
-        Returns:
-            Dict with contract details including ExchangeInstrumentID, Description, LotSize, etc.
-        """
-        key = (TARGET_NAME, TARGET_STRIKE, TARGET_OPTION_TYPE)
-        
-        if key not in self.contract_index:
-            raise ValueError(
-                f"No contracts found for {TARGET_NAME} {TARGET_STRIKE} CE "
-                f"(OptionType={TARGET_OPTION_TYPE})"
-            )
-
-        contracts = self.contract_index[key]
-        log.info("Found %d contracts for NIFTY 25000 CE", len(contracts))
-
-        # Filter contracts with expiry >= today
-        today = datetime.now().date()
-        valid_contracts = []
-        
-        for contract in contracts:
-            try:
-                expiry_str = contract["ContractExpiration"]
-                expiry_date = datetime.fromisoformat(expiry_str).date()
-                if expiry_date >= today:
-                    valid_contracts.append((contract, expiry_date))
-            except (ValueError, KeyError):
-                continue
-
-        if not valid_contracts:
-            raise ValueError("No valid contracts with expiry >= today")
-
-        log.info("Found %d valid contracts (expiry >= today)", len(valid_contracts))
-
-        # Select based on expiry mode
-        mode = get_expiry_mode()
-        if mode == "nearest":
-            # Sort by expiry date ascending and pick the first
-            valid_contracts.sort(key=lambda x: x[1])
-            selected_contract, selected_expiry = valid_contracts[0]
-        elif mode == "furthest":
-            # Sort by expiry date descending and pick the first
-            valid_contracts.sort(key=lambda x: x[1], reverse=True)
-            selected_contract, selected_expiry = valid_contracts[0]
-        else:
-            raise ValueError(f"Invalid EXPIRY_MODE: {mode}")
-
-        self.resolved_contract = {
-            "exchange_segment": selected_contract["ExchangeSegment"],
-            "exchange_instrument_id": int(selected_contract["ExchangeInstrumentID"]),
-            "instrument_name": selected_contract["Description"],
-            "lot_size": int(selected_contract["LotSize"]),
-            "expiry": selected_expiry.isoformat(),
-            "strike": TARGET_STRIKE,
-            "option_type": "CE",
-        }
-
-        log.info(
-            "Resolved contract (mode=%s): %s | Expiry: %s | InstrumentID: %d | LotSize: %d",
-            mode,
-            self.resolved_contract["instrument_name"],
-            self.resolved_contract["expiry"],
-            self.resolved_contract["exchange_instrument_id"],
-            self.resolved_contract["lot_size"],
-        )
-
-        return self.resolved_contract
-
-
 # Global variables
 loop = None
 client = None
-resolver = None
 http_port = DEFAULT_PORT
+atm_data = None
 
 
 async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
     """Process a signal and route to OMS."""
+    global atm_data
     try:
         action = signal.get("action", "").upper()
         position = signal.get("position", "").lower()
         quantity = signal.get("quantity")
+        option_type = signal.get("optionType", "CE").upper()  # Default to CE
 
         if not action or not position:
             return {
                 "status": "error",
-                "message": "Missing required fields: action, position"
+                "message": "Missing required fields: action, position",
             }
 
-        # Get resolved contract details
-        contract = resolver.resolve_contract()
-        
+        # Get live ATM data
+        if atm_data is None:
+            atm_data = await get_atm_data()
+            print(atm_data["atm_strike"])
+            log.info("Fetched live ATM data: strike=%d", atm_data["atm_strike"])
+
+        if option_type == "CE":
+            contract_data = atm_data["ce_contract"]
+            limit_price = atm_data["ce_ltp"]
+        elif option_type == "PE":
+            contract_data = atm_data["pe_contract"]
+            limit_price = atm_data["pe_ltp"]
+        else:
+            return {
+                "status": "error",
+                "message": "Invalid optionType, must be CE or PE",
+            }
+
+        contract = {
+            "exchange_segment": contract_data["ExchangeSegment"],
+            "exchange_instrument_id": int(contract_data["ExchangeInstrumentID"]),
+            "instrument_name": contract_data["Description"],
+            "lot_size": int(contract_data["LotSize"]),
+            "strike": atm_data["atm_strike"],
+            "option_type": option_type,
+        }
+
         # Determine quantity
         if quantity is not None:
             try:
@@ -200,18 +100,26 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
             quantity = contract["lot_size"]
 
         # Get product type from signal or default to MIS
-        product_type = (signal.get("productType") or signal.get("product_type") or "MIS").upper()
-        
+        product_type = (
+            signal.get("productType") or signal.get("product_type") or "MIS"
+        ).upper()
+
         # Get order type from signal or default to LIMIT
-        order_type = (signal.get("orderType") or signal.get("order_type") or "LIMIT").upper()
-        
-        # Get limit price from signal or use dummy price
-        limit_price = float(signal.get("limitPrice") or signal.get("limit_price") or DUMMY_PRICE)
+        order_type = (
+            signal.get("orderType") or signal.get("order_type") or "LIMIT"
+        ).upper()
+
+        # Override limit price from signal if provided
+        if signal.get("limitPrice") or signal.get("limit_price"):
+            limit_price = float(signal.get("limitPrice") or signal.get("limit_price"))
         stop_price = float(signal.get("stopPrice") or signal.get("stop_price") or 0.0)
 
         log.info(
             "Received signal: Action=%s, Position=%s, Qty=%d, Instrument=%s",
-            action, position, quantity, contract["instrument_name"]
+            action,
+            position,
+            quantity,
+            contract["instrument_name"],
         )
 
         if position == "flat":
@@ -222,7 +130,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
                 exchange_segment=contract["exchange_segment"],
                 exchange_instrument_id=contract["exchange_instrument_id"],
                 product_type=product_type,
-                signal_id=sig_id
+                signal_id=sig_id,
             )
             log.info("Squareoff command sent | signal_id=%s", sig_id)
             return {
@@ -234,7 +142,9 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
             }
         else:
             # Place order
-            log.info("Processing order placement for %s...", contract["instrument_name"])
+            log.info(
+                "Processing order placement for %s...", contract["instrument_name"]
+            )
             sig_id = uuid.uuid4().hex
             signal_id = await client.place_order(
                 exchange_segment=contract["exchange_segment"],
@@ -248,7 +158,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
                 limit_price=limit_price,
                 stop_price=stop_price,
                 tags=signal.get("tags") or {},
-                signal_id=sig_id
+                signal_id=sig_id,
             )
             log.info("Order signal sent | signal_id=%s", signal_id)
 
@@ -277,10 +187,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
 
     except Exception as e:
         log.exception("Error handling signal:")
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        return {"status": "error", "message": str(e)}
 
 
 class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
@@ -292,9 +199,7 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
                 signal = json.loads(post_data.decode("utf-8"))
 
                 # Dispatch to async handler
-                future = asyncio.run_coroutine_threadsafe(
-                    handle_signal(signal), loop
-                )
+                future = asyncio.run_coroutine_threadsafe(handle_signal(signal), loop)
 
                 # Wait for result (timeout 15s)
                 result = future.result(timeout=15.0)
@@ -309,10 +214,9 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
                 self.send_response(500)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({
-                    "status": "error",
-                    "message": str(e)
-                }).encode("utf-8"))
+                self.wfile.write(
+                    json.dumps({"status": "error", "message": str(e)}).encode("utf-8")
+                )
         else:
             self.send_response(404)
             self.end_headers()
@@ -338,27 +242,29 @@ def run_http_server():
 
 async def main():
     """Main entry point."""
-    global loop, client, resolver, http_port
+    global loop, client, http_port, atm_data
 
     # Parse command line args
     import argparse
+
     parser = argparse.ArgumentParser(description="Nifty Signal Bridge")
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT,
-                        help=f"HTTP port (default: {DEFAULT_PORT})")
-    parser.add_argument("--expiry-mode", type=str, default=get_expiry_mode(),
-                        choices=["nearest", "furthest"],
-                        help="Expiry selection mode (default: nearest)")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=DEFAULT_PORT,
+        help=f"HTTP port (default: {DEFAULT_PORT})",
+    )
     args = parser.parse_args()
 
     http_port = args.port
-    set_expiry_mode(args.expiry_mode)
 
     log.info("Starting Nifty Signal Bridge...")
-    log.info("Configuration: port=%d, expiry_mode=%s", http_port, get_expiry_mode())
+    log.info("Configuration: port=%d", http_port)
 
-    # Initialize contract resolver
-    resolver = ContractResolver(CSV_PATH)
-    resolver.resolve_contract()  # Pre-resolve to validate
+    # Pre-fetch ATM data on startup
+    log.info("Fetching initial ATM data...")
+    atm_data = await get_atm_data()
+    log.info("Initial ATM data loaded: strike=%d", atm_data["atm_strike"])
 
     # Get event loop
     loop = asyncio.get_running_loop()
