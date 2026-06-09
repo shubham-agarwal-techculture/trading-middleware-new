@@ -11,7 +11,7 @@ This repository provides a complete, end-to-end asynchronous signal-to-order exe
    - [Order Execution Sequence Diagram](#order-execution-sequence-diagram)
 3. [Component Breakdown](#component-breakdown)
    - [1. Node.js Webhook (`webhook/`)](#1-nodejs-webhook-webhook)
-   - [2. Python HTTP Bridge (`oms_bridge.py`)](#2-python-http-bridge-oms_bridgepy)
+   - [2. Python HTTP Bridge (`nifty_signal_bridge.py`)](#2-python-http-bridge-nifty-signal-bridge-nifty_signal_bridgepy)
    - [3. Nifty Signal Bridge (`nifty_signal_bridge.py`)](#3-nifty-signal-bridge-nifty_signal_bridgepy)
    - [4. Strategy Client (`strategy_client.py`)](#4-strategy-client-strategy_clientpy)
    - [5. Sample Strategy (`sample_strategy.py`)](#5-sample-strategy-sample_strategypy)
@@ -28,7 +28,7 @@ This repository provides a complete, end-to-end asynchronous signal-to-order exe
 The integration system processes incoming REST signals (e.g., from TradingView or an external algorithm) and submits corresponding order requests to a high-speed ZeroMQ-based OMS.
 
 *   **Ingress (Node.js)**: A lightweight Express server in Node.js listens on port `5001` for trade signals. It normalizes parameters, preserves custom properties, and passes them to a forwarding client.
-*   **Bridge (Python)**: Since ZeroMQ bindings in Node.js require native C++ compilation (which can be unstable on Windows), a lightweight Python script (`oms_bridge.py`) hosts a local HTTP server on port `5002` using standard libraries.
+*   **Bridge (Python)**: A lightweight Python script (`nifty_signal_bridge.py`) hosts a local HTTP server on port `5002` using standard libraries. If the incoming webhook payload includes `ticker` or `symbol`, the bridge resolves the exact contract from `master_data/NSEFO.csv`, fetches its live LTP, and uses that to create the OMS request. Otherwise it defaults to resolving the current NIFTY ATM option using live ATM data.
 *   **OMS client (Python)**: The Python bridge uses the `OMSClient` class (built on `pyzmq`) to push orders to the OMS server (`tcp://127.0.0.1:5555`) and subscribe to response updates (`tcp://127.0.0.1:5556`).
 *   **Acknowledgment Await**: For order placements, the bridge waits for the downstream `ORDER_ACK` via ZMQ, extracts the broker-assigned `oms_order_id`, and returns it back to the Node.js webhook response in real time.
 
@@ -51,7 +51,7 @@ graph TD
         receiver -->|Emit 'signal' event| node_index["index.js<br/>Forwarder Client"]
     end
 
-    subgraph PyBridge["Python Bridge Process (oms_bridge.py)"]
+    subgraph PyBridge["Python Bridge Process (nifty_signal_bridge.py)"]
         node_index -->|HTTP POST :5002/signal| http_server["BaseHTTPRequestHandler<br/>HTTPServer on :5002"]
         http_server -->|Dispatch to Loop| loop["asyncio Event Loop"]
         loop -->|Use Client API| client["OMSClient"]
@@ -114,23 +114,22 @@ A lightweight Node.js/Express application that listens on port `5001`.
 *   **`RESTSignalReceiver.js`**: Exposes the `/signal` POST route. It extracts and normalizes the core parameters (`action`, `quantity`, `position`, `symbol`, `orderType`, `limitPrice`, `productType`, `instrumentType`) while using `...req.body` to forward all additional vendor-specific parameters intact.
 *   **`index.js`**: Hooks into the event emitter from the receiver. When a signal is parsed, it sends an HTTP POST request to the Python bridge at `http://127.0.0.1:5002/signal` using Node's native `http` module (eliminating external library requirements).
 
-### 2. Python HTTP Bridge (`oms_bridge.py`)
+### 2. Python HTTP Bridge / Nifty Signal Bridge (`nifty_signal_bridge.py`)
 A background service written in Python that acts as a translator between Node's HTTP client and the OMS's ZMQ socket:
+*   Resolves the current NIFTY ATM option contract using live ATM data and master contract data.
+*   If the incoming webhook includes `ticker` or `symbol`, it selects that exact contract from `master_data/NSEFO.csv` and fetches the live LTP for the order.
 *   Connects to the ZMQ OMS ports.
 *   Spins up a lightweight, standard library `http.server.HTTPServer` on port `5002` in a background thread.
 *   Uses `asyncio.run_coroutine_threadsafe` to handle requests asynchronously inside the main event loop.
 *   Supports order placement (with a 10s wait for ZMQ acknowledgments) and position square-offs (when `position` is `"flat"`).
-*   Applies fallback instrument defaults (e.g. NIFTY) if instrument information is omitted from the webhook.
 
 ### 3. Nifty Signal Bridge (`nifty_signal_bridge.py`)
-A standalone Python script that automatically resolves NIFTY 25000 CE contracts from the master data CSV and routes trade signals to the OMS:
-*   Parses `master_data/NSEFO.csv` on startup and indexes contracts by (Name, StrikePrice, OptionType) for O(1) lookups.
-*   Automatically filters for NIFTY 25000 CE (OptionType=3) contracts with expiry ≥ current date.
-*   Supports two expiry selection modes:
-  - `nearest` (default): Selects the closest active/upcoming weekly or monthly contract
-  - `furthest`: Selects the chronologically furthest expiration date
-*   Runs an HTTP server on port `5002` (configurable) with a `/signal` POST endpoint.
-*   Integrates with `OMSClient` to send PLACE_ORDER and SQUAREOFF signals using a dummy limit price (default 1.0).
+A standalone Python script that resolves the current NIFTY ATM option contract or a ticker-specific contract and routes trade signals to the OMS:
+*   Loads `master_data/NSEFO.csv` and resolves live ATM contract metadata via `get_atm_data()`.
+*   If the webhook payload includes `ticker` or `symbol`, it selects the exact matching contract from `NSEFO.csv` and fetches that contract's live LTP.
+*   Uses the selected contract for `CE` or `PE` signals, with `CE` as the default option type when ATM resolution is used.
+*   Runs an HTTP server on port `5002` with a `/signal` POST endpoint.
+*   Integrates with `OMSClient` to send `PLACE_ORDER` and `SQUAREOFF` signals.
 *   Waits for ZMQ `ORDER_ACK` and returns the status and `oms_order_id` in the response.
 
 **Usage**:
@@ -144,6 +143,15 @@ curl -X POST http://localhost:5002/signal \
   -H "Content-Type: application/json" \
   -d '{"action": "BUY", "position": "long", "quantity": 65}'
 ```
+
+**Ticker-based signal example**:
+```bash
+curl -X POST http://localhost:5002/signal \
+  -H "Content-Type: application/json" \
+  -d '{"action": "BUY", "position": "long", "quantity": 100, "ticker": "ABB26JUN9800CE"}'
+```
+
+If `ticker` or `symbol` is provided, the bridge resolves the exact contract from `master_data/NSEFO.csv`, fetches its live LTP, and uses that instrument for the OMS order.
 
 ### 4. Strategy Client (`strategy_client.py`)
 The underlying client library utilized by Python scripts to:
@@ -176,7 +184,7 @@ A reference implementation showing how a script can programmatically interact wi
 ```json
 {
   "msg_type": "PLACE_ORDER",
-  "strategy_id": "WEBHOOK_BRIDGE",
+  "strategy_id": "NIFTY_SIGNAL_BRIDGE",
   "signal_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d4f82",
   "timestamp": "2026-06-04T12:00:00.123456",
   "exchange_segment": "NSEFO",
@@ -196,7 +204,7 @@ A reference implementation showing how a script can programmatically interact wi
 
 ### 3. Execution Update from OMS (ZMQ SUB)
 ```text
-WEBHOOK_BRIDGE {"msg_type": "ORDER_ACK", "strategy_id": "WEBHOOK_BRIDGE", "signal_id": "9b1deb4d...", "oms_order_id": "OMS_87654", "status": "PENDING"}
+NIFTY_SIGNAL_BRIDGE {"msg_type": "ORDER_ACK", "strategy_id": "NIFTY_SIGNAL_BRIDGE", "signal_id": "9b1deb4d...", "oms_order_id": "OMS_87654", "status": "PENDING"}
 ```
 
 ---
@@ -219,7 +227,7 @@ WEBHOOK_BRIDGE {"msg_type": "ORDER_ACK", "strategy_id": "WEBHOOK_BRIDGE", "signa
 2.  **Start the Python Bridge**:
     Run the bridge from the `mukul_scripts` root directory:
     ```bash
-    .venv\Scripts\python.exe oms_bridge.py
+    .venv\Scripts\python.exe nifty_signal_bridge.py
     ```
     *Logs will display connection confirmation: `OMS Client connected. Starting HTTP thread...`*
 

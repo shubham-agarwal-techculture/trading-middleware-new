@@ -165,7 +165,7 @@ class XTSMarketDataClient:
                     if response.status == 200:
                         data = await response.json()
                         # print(data)
-                        # log.info("Quote response: %s", json.dumps(data, indent=2))
+                        log.info("Quote response: %s", json.dumps(data, indent=2))
                         # if data.get("result", {}).get("quotesResponseList"):
                         list_quotes = data["result"]["listQuotes"]
                         if list_quotes:
@@ -427,6 +427,12 @@ async def get_atm_data() -> Dict[str, Any]:
         "ce_contract": ce_contract,
         "pe_contract": pe_contract,
     }
+
+
+def provide_xts_client() -> XTSMarketDataClient:
+    """Helper function to create and connect an XTSMarketDataClient."""
+    client = XTSMarketDataClient(XTS_API_KEY, XTS_API_SECRET)
+    return client
 
 
 async def main():

@@ -19,12 +19,20 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
+import re
+from datetime import datetime
+from typing import Optional
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from strategy_client import OMSClient
-from nifty_atm_ltp import get_atm_data
+from nifty_atm_ltp import (
+    ContractLoader,
+    XTSMarketDataClient,
+    get_atm_data,
+    provide_xts_client,
+)
 
 # Configuration
 STRATEGY_ID = "NIFTY_SIGNAL_BRIDGE"
@@ -48,6 +56,100 @@ http_port = DEFAULT_PORT
 atm_data = None
 
 
+def tv_to_xts_description(tv_ticker: str) -> Optional[str]:
+    """
+    Convert TradingView option ticker format to XTS master Description format.
+
+    Example:
+        RELIANCE260630C1230  -> RELIANCE26JUN1230CE
+        NIFTY260625P25000    -> NIFTY26JUN25000PE
+    """
+
+    tv_ticker = tv_ticker.strip().upper()
+
+    match = re.match(r"^([A-Z]+)(\d{6})([CP])(\d+(?:\.\d+)?)$", tv_ticker)
+
+    if not match:
+        return None
+
+    underlying = match.group(1)
+    expiry_str = match.group(2)
+    option_flag = match.group(3)
+    strike = match.group(4)
+
+    expiry = datetime.strptime(expiry_str, "%y%m%d")
+
+    expiry_part = expiry.strftime("%y%b").upper()
+
+    option_type = "CE" if option_flag == "C" else "PE"
+
+    if strike.endswith(".0"):
+        strike = str(int(float(strike)))
+
+    return f"{underlying}{expiry_part}{strike}{option_type}"
+
+
+async def resolve_contract_by_ticker(
+    ticker: str,
+) -> Optional[dict]:
+
+    if not ticker:
+        return None
+
+    loader = ContractLoader(CSV_PATH)
+
+    xts_description = tv_to_xts_description(ticker)
+
+    if not xts_description:
+        return None
+
+    xts_description = xts_description.upper()
+
+    for contract in loader.contracts:
+        description = contract.get("Description", "").strip().upper()
+
+        if description == xts_description:
+            return contract
+
+    return None
+
+
+# async def resolve_contract_by_ticker(ticker: str) -> Optional[Dict[str, Any]]:
+#     """Find a contract in NSEFO.csv by ticker symbol or description."""
+#     if not ticker:
+#         return None
+
+#     loader = ContractLoader(CSV_PATH)
+#     ticker_norm = ticker.strip().upper()
+
+#     for contract in loader.contracts:
+#         description = contract.get("Description", "")
+#         name = contract.get("Name", "")
+#         name_with_series = contract.get("NameWithSeries", "")
+
+#         if any(
+#             field and field.strip().upper() == ticker_norm
+#             for field in (description, name, name_with_series)
+#         ):
+#             return contract
+
+#     return None
+
+
+async def get_ltp_for_contract(contract_data: Dict[str, Any]) -> Optional[float]:
+    """Fetch the live LTP for a specific contract using the XTS marketdata client."""
+    # xts_client = XTSMarketDataClient(XTS_API_KEY, XTS_API_SECRET)
+    xts_client = provide_xts_client()  # Use helper function to create client
+    try:
+        await xts_client.connect()
+        return await xts_client.get_ltp(
+            int(contract_data["ExchangeInstrumentID"]),
+            contract_data.get("ExchangeSegment", "NSEFO"),
+        )
+    finally:
+        await xts_client.disconnect()
+
+
 async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
     """Process a signal and route to OMS."""
     global atm_data
@@ -56,6 +158,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
         position = signal.get("position", "").lower()
         quantity = signal.get("quantity")
         option_type = signal.get("optionType", "CE").upper()  # Default to CE
+        ticker = signal.get("ticker") or signal.get("symbol")
 
         if not action or not position:
             return {
@@ -63,32 +166,76 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
                 "message": "Missing required fields: action, position",
             }
 
-        # Get live ATM data
-        if atm_data is None:
-            atm_data = await get_atm_data()
-            print(atm_data["atm_strike"])
-            log.info("Fetched live ATM data: strike=%d", atm_data["atm_strike"])
+        contract_data = None
+        limit_price = None
 
-        if option_type == "CE":
-            contract_data = atm_data["ce_contract"]
-            limit_price = atm_data["ce_ltp"]
-        elif option_type == "PE":
-            contract_data = atm_data["pe_contract"]
-            limit_price = atm_data["pe_ltp"]
-        else:
-            return {
-                "status": "error",
-                "message": "Invalid optionType, must be CE or PE",
+        if ticker:
+            contract_data = await resolve_contract_by_ticker(ticker)
+            if not contract_data:
+                return {
+                    "status": "error",
+                    "message": f"Contract not found for ticker: {ticker}",
+                }
+
+            log.info("Resolved ticker contract: %s", contract_data.get("Description"))
+
+            fetched_ltp = await get_ltp_for_contract(contract_data)
+            if fetched_ltp is None:
+                return {
+                    "status": "error",
+                    "message": f"Could not fetch LTP for ticker contract: {ticker}",
+                }
+
+            if signal.get("limitPrice") or signal.get("limit_price"):
+                limit_price = float(
+                    signal.get("limitPrice") or signal.get("limit_price")
+                )
+            else:
+                limit_price = fetched_ltp
+
+            option_type = (
+                "CE"
+                if contract_data.get("OptionType") == "3"
+                else "PE"
+                if contract_data.get("OptionType") == "4"
+                else option_type
+            )
+
+            contract = {
+                "exchange_segment": contract_data["ExchangeSegment"],
+                "exchange_instrument_id": int(contract_data["ExchangeInstrumentID"]),
+                "instrument_name": contract_data["Description"],
+                "lot_size": int(contract_data["LotSize"]),
+                "strike": int(float(contract_data.get("StrikePrice", 0))),
+                "option_type": option_type,
             }
+        else:
+            # Get live ATM data
+            if atm_data is None:
+                atm_data = await get_atm_data()
+                print(atm_data["atm_strike"])
+                log.info("Fetched live ATM data: strike=%d", atm_data["atm_strike"])
 
-        contract = {
-            "exchange_segment": contract_data["ExchangeSegment"],
-            "exchange_instrument_id": int(contract_data["ExchangeInstrumentID"]),
-            "instrument_name": contract_data["Description"],
-            "lot_size": int(contract_data["LotSize"]),
-            "strike": atm_data["atm_strike"],
-            "option_type": option_type,
-        }
+            if option_type == "CE":
+                contract_data = atm_data["ce_contract"]
+                limit_price = atm_data["ce_ltp"]
+            elif option_type == "PE":
+                contract_data = atm_data["pe_contract"]
+                limit_price = atm_data["pe_ltp"]
+            else:
+                return {
+                    "status": "error",
+                    "message": "Invalid optionType, must be CE or PE",
+                }
+
+            contract = {
+                "exchange_segment": contract_data["ExchangeSegment"],
+                "exchange_instrument_id": int(contract_data["ExchangeInstrumentID"]),
+                "instrument_name": contract_data["Description"],
+                "lot_size": int(contract_data["LotSize"]),
+                "strike": atm_data["atm_strike"],
+                "option_type": option_type,
+            }
 
         # Determine quantity
         if quantity is not None:
