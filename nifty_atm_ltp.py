@@ -251,6 +251,9 @@ class ContractLoader:
                 if contract["Series"] != "FUTIDX":
                     continue
 
+                if contract["InstrumentType"] != "1":  # Ensure it's a futures contract
+                    continue
+
                 # print("hi")
                 expiry_str = contract["ContractExpiration"]
                 expiry_date = datetime.fromisoformat(expiry_str).date()
@@ -354,7 +357,7 @@ class ContractLoader:
 
 async def get_atm_data() -> Dict[str, Any]:
     """Get ATM option data for NIFTY.
-    
+
     Returns:
         Dict with keys:
             - ce_instrument_id: int
@@ -383,9 +386,7 @@ async def get_atm_data() -> Dict[str, Any]:
 
     # Get LTP for futures (as proxy for underlying close)
     futures_id = int(futures_contract["ExchangeInstrumentID"])
-    futures_ltp = await client.get_ltp(
-        futures_id, futures_contract["ExchangeSegment"]
-    )
+    futures_ltp = await client.get_ltp(futures_id, futures_contract["ExchangeSegment"])
 
     if futures_ltp is None:
         await client.disconnect()
