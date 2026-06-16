@@ -1,0 +1,246 @@
+<!-- webhook/public/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        header {
+            background: #fff;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 24px;
+        }
+        header h1 {
+            color: #1a1a1a;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        .card {
+            background: #fff;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .card h2 {
+            font-size: 20px;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .position-item {
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .position-info {
+            flex: 1;
+        }
+        .position-info h3 {
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+        .position-info p {
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .squareoff-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .squareoff-btn:hover {
+            background: #dc2626;
+        }
+        .alert-item {
+            padding: 12px;
+            border-left: 4px solid #3b82f6;
+            background: #f8fafc;
+            margin-bottom: 8px;
+            border-radius: 4px;
+        }
+        .alert-item.squareoff {
+            border-left-color: #10b981;
+        }
+        .alert-item.signal {
+            border-left-color: #f59e0b;
+        }
+        .alert-timestamp {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 4px;
+        }
+        .alert-message {
+            font-size: 14px;
+        }
+        .refresh-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .no-data {
+            color: #9ca3af;
+            text-align: center;
+            padding: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Trading Dashboard</h1>
+            <p>Monitor your positions and alerts</p>
+        </header>
+
+        <div class="grid">
+            <div class="card">
+                <h2>
+                    Open Positions
+                    <button class="refresh-btn" onclick="fetchPositions()">Refresh</button>
+                </h2>
+                <div id="positions-container"></div>
+            </div>
+
+            <div class="card">
+                <h2>
+                    Alerts
+                    <button class="refresh-btn" onclick="fetchAlerts()">Refresh</button>
+                </h2>
+                <div id="alerts-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5002';
+
+        async function fetchPositions() {
+            try {
+                const response = await fetch(`${API_BASE}/positions`);
+                const positions = await response.json();
+                renderPositions(positions);
+            } catch (error) {
+                console.error('Error fetching positions:', error);
+            }
+        }
+
+        function renderPositions(positions) {
+            const container = document.getElementById('positions-container');
+            const keys = Object.keys(positions);
+            if (keys.length === 0) {
+                container.innerHTML = '<div class="no-data">No open positions</div>';
+                return;
+            }
+
+            container.innerHTML = keys.map(key => {
+                const pos = positions[key];
+                return `
+                    <div class="position-item">
+                        <div class="position-info">
+                            <h3>${pos.instrument}</h3>
+                            <p>Quantity: ${pos.qty} | Opened: ${new Date(pos.opened_at).toLocaleString()}</p>
+                        </div>
+                        <button class="squareoff-btn" onclick="squareOff('${key}')">Square Off</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function squareOff(instrumentKey) {
+            if (!confirm('Are you sure you want to square off this position?')) return;
+            try {
+                const response = await fetch(`${API_BASE}/squareoff`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ instrument_key: instrumentKey })
+                });
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert('Position squared off successfully!');
+                    fetchPositions();
+                    fetchAlerts();
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error squaring off:', error);
+                alert('Error squaring off position');
+            }
+        }
+
+        async function fetchAlerts() {
+            try {
+                const response = await fetch(`${API_BASE}/alerts`);
+                const alerts = await response.json();
+                renderAlerts(alerts);
+            } catch (error) {
+                console.error('Error fetching alerts:', error);
+            }
+        }
+
+        function renderAlerts(alerts) {
+            const container = document.getElementById('alerts-container');
+            if (alerts.length === 0) {
+                container.innerHTML = '<div class="no-data">No alerts</div>';
+                return;
+            }
+
+            container.innerHTML = alerts.map(alert => `
+                <div class="alert-item ${alert.type.toLowerCase()}">
+                    <div class="alert-timestamp">${new Date(alert.timestamp).toLocaleString()}</div>
+                    <div class="alert-message">${alert.message}</div>
+                </div>
+            `).join('');
+        }
+
+        // Initial load
+        fetchPositions();
+        fetchAlerts();
+
+        // Auto refresh every 5 seconds
+        setInterval(() => {
+            fetchPositions();
+            fetchAlerts();
+        }, 5000);
+    </script>
+</body>
+</html>

@@ -1,10 +1,19 @@
 require('dotenv').config();
 const RESTSignalReceiver = require('./RESTSignalReceiver');
 const http = require('http');
+const express = require('express');
+const path = require('path');
 
 const port = process.env.SIGNAL_PORT || 5001;
 const bridgePort = process.env.OMS_BRIDGE_PORT || 5002;
 const receiver = new RESTSignalReceiver(port);
+const app = express();
+
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Create HTTP server that uses Express app
+const server = http.createServer(app);
 
 function forwardSignal(signal) {
     const data = JSON.stringify(signal);

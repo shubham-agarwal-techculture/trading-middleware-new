@@ -20,4 +20,5 @@ curl -X POST https://sporting-reach-dispersal.ngrok-free.dev/signal \
     "action": "SELL",
     "position": "long",
     "quantity": 60
+    "ticker": "trading view instrument symbol"
   }'

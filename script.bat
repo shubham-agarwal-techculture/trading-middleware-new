@@ -1,6 +1,6 @@
 @echo off
 
-set ROOT=D:\projects-shubham\02.06.2026\mukul_scripts
+set ROOT=D:\projects-shubham\02.06.2026\trading_middleware
 set VENV=%ROOT%\.venv\Scripts\activate.bat
 
 wt ^
