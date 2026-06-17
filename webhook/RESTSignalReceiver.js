@@ -5,10 +5,14 @@ const fs = require('fs').promises;
 const path = require('path');
 
 class RESTSignalReceiver extends SignalSource {
-    constructor(port = 5001, logFilePath = 'signals.json') {
+    constructor(port = 5001, logFilePath = 'signals.json', app = null) {
         super();
         this.port = port;
-        this.app = express();
+        if (app) {
+            this.app = app;
+        } else {
+            this.app = express();
+        }
         this.app.use(express.json());
         this.events = new EventEmitter();
         this.logFilePath = logFilePath;
@@ -124,11 +128,16 @@ class RESTSignalReceiver extends SignalSource {
         }
     }
 
-    start() {
-        this.server = this.app.listen(this.port, () => {
-            console.log(`Signal Receiver listening on port ${this.port}`);
-            console.log(`Signals will be logged to: ${this.logFilePath}`);
-        });
+    start(server = null) {
+        if (server) {
+            this.server = server;
+            console.log(`Signal Receiver attached to existing server on port ${this.port}`);
+        } else {
+            this.server = this.app.listen(this.port, () => {
+                console.log(`Signal Receiver listening on port ${this.port}`);
+                console.log(`Signals will be logged to: ${this.logFilePath}`);
+            });
+        }
     }
 
     stop() {

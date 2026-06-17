@@ -245,8 +245,11 @@
 
         async function fetchPositions() {
             try {
+                console.log('Fetching positions from', `${API_BASE}/positions`);
                 const response = await fetch(`${API_BASE}/positions`);
+                console.log('Positions response status:', response.status);
                 const positions = await response.json();
+                console.log('Positions data:', positions);
                 renderPositions(positions);
             } catch (error) {
                 console.error('Error fetching positions:', error);
@@ -256,6 +259,7 @@
         function renderPositions(positions) {
             const container = document.getElementById('positions-container');
             const keys = Object.keys(positions);
+            console.log('Rendering positions. Keys:', keys, 'Positions:', positions);
             if (keys.length === 0) {
                 container.innerHTML = '<div class="no-data">No open positions</div>';
                 return;
@@ -302,8 +306,11 @@
 
         async function fetchAlerts() {
             try {
+                console.log('Fetching alerts from', `${API_BASE}/alerts`);
                 const response = await fetch(`${API_BASE}/alerts`);
+                console.log('Alerts response status:', response.status);
                 const alerts = await response.json();
+                console.log('Alerts data:', alerts);
                 renderAlerts(alerts);
             } catch (error) {
                 console.error('Error fetching alerts:', error);
@@ -312,6 +319,7 @@
 
         function renderAlerts(alerts) {
             const container = document.getElementById('alerts-container');
+            console.log('Rendering alerts:', alerts);
             if (alerts.length === 0) {
                 container.innerHTML = '<div class="no-data">No alerts</div>';
                 return;
@@ -327,8 +335,11 @@
 
         async function fetchHistory() {
             try {
+                console.log('Fetching history from', `${API_BASE}/history`);
                 const response = await fetch(`${API_BASE}/history`);
+                console.log('History response status:', response.status);
                 const history = await response.json();
+                console.log('History data:', history);
                 renderHistory(history);
             } catch (error) {
                 console.error('Error fetching history:', error);
@@ -337,6 +348,7 @@
 
         function renderHistory(history) {
             const container = document.getElementById('history-container');
+            console.log('Rendering history:', history);
             if (history.length === 0) {
                 container.innerHTML = '<div class="no-data">No history available</div>';
                 return;

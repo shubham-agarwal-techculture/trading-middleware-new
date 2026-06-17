@@ -6,13 +6,15 @@ const path = require('path');
 
 const port = process.env.SIGNAL_PORT || 5001;
 const bridgePort = process.env.OMS_BRIDGE_PORT || 5002;
-const receiver = new RESTSignalReceiver(port);
 const app = express();
 
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Create HTTP server that uses Express app
+// Create receiver with our app
+const receiver = new RESTSignalReceiver(port, 'signals.json', app);
+
+// Create HTTP server
 const server = http.createServer(app);
 
 function forwardSignal(signal) {
@@ -52,6 +54,11 @@ receiver.on('signal', (signal) => {
     forwardSignal(signal);
 });
 
-receiver.start();
+// Start the server
+server.listen(port, () => {
+    console.log(`Webhook service and dashboard running on port ${port}`);
+    console.log(`Dashboard: http://localhost:${port}`);
+});
 
-console.log(`Webhook service running on port ${port}`);
+// Start the receiver with our server
+receiver.start(server);

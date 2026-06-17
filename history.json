@@ -1,6 +1,30 @@
 [
     {
         "side": "BUY",
+        "qty": 100,
+        "instrument": "NIFTY2662325850CE",
+        "exchange_instrument_id": 56482,
+        "opened_at": "2026-06-17T14:19:35.739472+05:30",
+        "signal_id": "308f39bd17e84a18a0fd6fb1e878ffc4",
+        "oms_order_id": "c6529980a02a467898",
+        "status": "REJECTED",
+        "final_status": "REJECTED",
+        "closed_at": "2026-06-17T14:19:36.606859+05:30"
+    },
+    {
+        "side": "BUY",
+        "qty": 100,
+        "instrument": "NIFTY2662325650CE",
+        "exchange_instrument_id": 56472,
+        "opened_at": "2026-06-17T14:17:44.225914+05:30",
+        "signal_id": "b24181e0b0de44d997b46ad6d111cc8c",
+        "oms_order_id": "4e12fcd6b7be44ffba",
+        "status": "REJECTED",
+        "final_status": "REJECTED",
+        "closed_at": "2026-06-17T14:17:46.378124+05:30"
+    },
+    {
+        "side": "BUY",
         "qty": 65,
         "instrument": "NIFTY2662325650CE",
         "exchange_instrument_id": 56472,
