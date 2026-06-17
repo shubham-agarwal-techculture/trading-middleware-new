@@ -20,8 +20,13 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 import re
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Optional
+from calendar import monthcalendar
+
+IST = timezone(timedelta(hours=5, minutes=30))
+def get_ist_now():
+    return datetime.now(IST).isoformat()
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -57,6 +62,7 @@ http_port = DEFAULT_PORT
 atm_data = None
 pending_orders = {}  # Track pending orders by signal_id
 alerts = []  # Track alerts/signals
+cleanup_stop_event = threading.Event()
 
 
 def load_positions():
@@ -81,13 +87,46 @@ def save_positions(positions):
         log.error("Error saving positions: %s", e)
 
 
+HISTORY_FILE = Path("history.json")
+
+def load_history():
+    """Load history from JSON file."""
+    if not HISTORY_FILE.exists():
+        return []
+    try:
+        with open(HISTORY_FILE, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        log.error("Error loading history: %s", e)
+        return []
+
+def save_history(history):
+    """Save history to JSON file."""
+    try:
+        with open(HISTORY_FILE, "w") as f:
+            json.dump(history, f, indent=4)
+    except Exception as e:
+        log.error("Error saving history: %s", e)
+
+def append_to_history(position, status):
+    """Append a completed/failed position to history.json"""
+    history = load_history()
+    pos_copy = position.copy()
+    pos_copy["final_status"] = status
+    pos_copy["closed_at"] = get_ist_now()
+    history.insert(0, pos_copy)
+    if len(history) > 1000:
+        history = history[:1000]
+    save_history(history)
+
+
 def add_alert(alert_data):
     """Add a new alert to the alerts list."""
     global alerts
     alert = {
         "id": uuid.uuid4().hex,
-        "timestamp": datetime.utcnow().isoformat(),
-        **alert_data
+        "timestamp": get_ist_now(),
+        **alert_data,
     }
     alerts.insert(0, alert)  # Add to beginning for newest first
     # Keep only last 100 alerts
@@ -95,18 +134,65 @@ def add_alert(alert_data):
         alerts = alerts[:100]
 
 
+def periodic_cleanup():
+    """Periodically scan positions.json for terminal statuses and move to history"""
+    log.info("Starting periodic cleanup thread (runs every 5 seconds)")
+    while not cleanup_stop_event.is_set():
+        try:
+            positions = load_positions()
+            updated = False
+            terminal_statuses = ["REJECTED", "CANCELLED", "EXPIRED", "ERROR"]
+            
+            for key, pos in list(positions.items()):
+                status = pos.get("status", "").upper()
+                if status in terminal_statuses:
+                    log.info("Moving position %s to history (terminal status: %s)", pos.get("instrument"), status)
+                    append_to_history(pos, status)
+                    positions.pop(key, None)
+                    updated = True
+            
+            if updated:
+                save_positions(positions)
+        except Exception as e:
+            log.error("Error in periodic cleanup: %s", e)
+        
+        # Wait for 5 seconds or until stop event is set
+        cleanup_stop_event.wait(timeout=5.0)
+
+
+def is_monthly_expiry(expiry):
+    """
+    NIFTY monthly expiry = last Tuesday of month
+    """
+    cal = monthcalendar(expiry.year, expiry.month)
+
+    # Tuesday column = index 1
+    last_tuesday = max(week[1] for week in cal if week[1] != 0)
+
+    return (
+        expiry.weekday() == 1  # Tuesday
+        and expiry.day == last_tuesday
+    )
+
+
 def tv_to_xts_description(tv_ticker: str) -> Optional[str]:
     """
-    Convert TradingView option ticker format to XTS master Description format.
+    TradingView:
+        NIFTY260625C27000
 
-    Example:
-        RELIANCE260630C1230  -> RELIANCE26JUN1230CE
-        NIFTY260625P25000    -> NIFTY26JUN25000PE
+    Monthly XTS:
+        NIFTY26JUN27000CE
+
+    Weekly XTS:
+        NIFTY2661827000CE
     """
 
     tv_ticker = tv_ticker.strip().upper()
 
-    match = re.match(r"^([A-Z]+)(\d{6})([CP])(\d+(?:\.\d+)?)$", tv_ticker)
+    match = re.match(
+        r"^([A-Z]+)(\d{6})([CP])(\d+(?:\.\d+)?)$",
+        tv_ticker,
+    )
 
     if not match:
         return None
@@ -116,16 +202,119 @@ def tv_to_xts_description(tv_ticker: str) -> Optional[str]:
     option_flag = match.group(3)
     strike = match.group(4)
 
-    expiry = datetime.strptime(expiry_str, "%y%m%d")
-
-    expiry_part = expiry.strftime("%y%b").upper()
+    try:
+        expiry = datetime.strptime(expiry_str, "%y%m%d")
+    except ValueError:
+        return None
 
     option_type = "CE" if option_flag == "C" else "PE"
 
     if strike.endswith(".0"):
         strike = str(int(float(strike)))
 
+    if is_monthly_expiry(expiry):
+        # Example: NIFTY26JUN27000CE
+        expiry_part = expiry.strftime("%y%b").upper()
+    else:
+        # Example: NIFTY2661827000CE
+        expiry_part = f"{expiry.year % 100}{expiry.month}{expiry.day:02d}"
+
     return f"{underlying}{expiry_part}{strike}{option_type}"
+
+
+# def is_monthly_expiry(expiry: datetime) -> bool:
+#     """
+#     Returns True if expiry is the last Thursday of the month.
+#     """
+#     cal = monthcalendar(expiry.year, expiry.month)
+
+#     thursdays = [week[3] for week in cal if week[3] != 0]
+
+#     return expiry.day == thursdays[-1]
+
+
+# def tv_to_xts_description(tv_ticker: str) -> Optional[str]:
+#     """
+#     Convert TradingView option ticker format to XTS master Description format.
+
+#     Examples:
+
+#     Monthly expiry:
+#         NIFTY260625C25000
+#         -> NIFTY26JUN25000CE
+
+#     Weekly expiry:
+#         NIFTY260623C24650
+#         -> NIFTY2662324650CE
+#     """
+
+#     tv_ticker = tv_ticker.strip().upper()
+
+#     match = re.match(
+#         r"^([A-Z]+)(\d{6})([CP])(\d+(?:\.\d+)?)$",
+#         tv_ticker,
+#     )
+
+#     if not match:
+#         return None
+
+#     underlying = match.group(1)
+#     expiry_str = match.group(2)
+#     option_flag = match.group(3)
+#     strike = match.group(4)
+
+#     try:
+#         expiry = datetime.strptime(expiry_str, "%y%m%d")
+#     except ValueError:
+#         return None
+
+#     option_type = "CE" if option_flag == "C" else "PE"
+
+#     if strike.endswith(".0"):
+#         strike = str(int(float(strike)))
+
+#     # Monthly expiry → NIFTY26JUN25000CE
+#     if is_monthly_expiry(expiry):
+#         expiry_part = expiry.strftime("%y%b").upper()
+
+#     # Weekly expiry → NIFTY2662324650CE
+#     else:
+#         expiry_part = f"{expiry.year % 100}{expiry.month}{expiry.day:02d}"
+
+#     return f"{underlying}{expiry_part}{strike}{option_type}"
+
+
+# def tv_to_xts_description(tv_ticker: str) -> Optional[str]:
+#     """
+#     Convert TradingView option ticker format to XTS master Description format.
+
+#     Example:
+#         RELIANCE260630C1230  -> RELIANCE26JUN1230CE
+#         NIFTY260625P25000    -> NIFTY26JUN25000PE
+#     """
+
+#     tv_ticker = tv_ticker.strip().upper()
+
+#     match = re.match(r"^([A-Z]+)(\d{6})([CP])(\d+(?:\.\d+)?)$", tv_ticker)
+
+#     if not match:
+#         return None
+
+#     underlying = match.group(1)
+#     expiry_str = match.group(2)
+#     option_flag = match.group(3)
+#     strike = match.group(4)
+
+#     expiry = datetime.strptime(expiry_str, "%y%m%d")
+
+#     expiry_part = expiry.strftime("%y%b").upper()
+
+#     option_type = "CE" if option_flag == "C" else "PE"
+
+#     if strike.endswith(".0"):
+#         strike = str(int(float(strike)))
+
+#     return f"{underlying}{expiry_part}{strike}{option_type}"
 
 
 async def resolve_contract_by_ticker(
@@ -173,56 +362,49 @@ async def process_order_status(signal_id: str, contract: Dict[str, Any], quantit
     try:
         log.info("Monitoring order status for signal_id: %s", signal_id)
 
-        # Wait for ORDER_ACK with status tracking
-        timeout = 30.0
-        start_time = datetime.utcnow()
-        order_filled = False
         instrument_key = str(contract["exchange_instrument_id"])
 
-        while (datetime.utcnow() - start_time).total_seconds() < timeout:
-            ack = await client.wait_for_ack(signal_id, timeout=2.0)
-            if ack:
-                status = ack.get("status", "")
-                log.info("Order status update for %s: %s", signal_id, status)
+        # Wait for ORDER_ACK with status tracking
+        ack = await client.wait_for_ack(signal_id, timeout=30.0)
+        
+        if ack:
+            status = ack.get("status", "").upper()
+            log.info("Order ack received for %s: %s", signal_id, status)
 
-                if status in ["FILLED", "COMPLETE"]:
-                    order_filled = True
-                    # Save position only after order is FILLED
-                    positions = load_positions()
-                    positions[instrument_key] = {
-                        "side": "BUY",
-                        "qty": quantity,
-                        "instrument": contract["instrument_name"],
-                        "exchange_instrument_id": contract["exchange_instrument_id"],
-                        "opened_at": datetime.utcnow().isoformat(),
-                        "signal_id": signal_id,
-                        "oms_order_id": ack.get("oms_order_id"),
-                    }
-                    save_positions(positions)
-                    log.info("Position saved for %s", contract["instrument_name"])
+            if status not in ["REJECTED", "CANCELLED", "EXPIRED", "ERROR"]:
+                # Save position once acknowledged
+                positions = load_positions()
+                positions[instrument_key] = {
+                    "side": "BUY",
+                    "qty": quantity,
+                    "instrument": contract["instrument_name"],
+                    "exchange_instrument_id": contract["exchange_instrument_id"],
+                    "opened_at": get_ist_now(),
+                    "signal_id": signal_id,
+                    "oms_order_id": ack.get("oms_order_id"),
+                    "status": status,
+                }
+                save_positions(positions)
+                log.info("Position saved for %s", contract["instrument_name"])
 
-                    # Update pending order status
-                    if signal_id in pending_orders:
-                        pending_orders[signal_id]["status"] = "filled"
-                        pending_orders[signal_id]["response"] = ack
-                    break
+                # Update pending order status
+                if signal_id in pending_orders:
+                    pending_orders[signal_id]["status"] = "acknowledged"
+                    pending_orders[signal_id]["response"] = ack
 
-                elif status in ["REJECTED", "CANCELLED", "EXPIRED"]:
-                    log.warning(
-                        "Order failed with status: %s for signal_id: %s",
-                        status,
-                        signal_id,
-                    )
-                    if signal_id in pending_orders:
-                        pending_orders[signal_id]["status"] = "failed"
-                        pending_orders[signal_id]["response"] = ack
-                    break
             else:
-                # No ACK received yet, continue waiting
-                await asyncio.sleep(0.5)
-
-        if not order_filled and signal_id in pending_orders:
-            pending_orders[signal_id]["status"] = "timeout"
+                log.warning(
+                    "Order failed at ack with status: %s for signal_id: %s",
+                    status,
+                    signal_id,
+                )
+                if signal_id in pending_orders:
+                    pending_orders[signal_id]["status"] = "failed"
+                    pending_orders[signal_id]["response"] = ack
+        else:
+            log.warning("Timeout waiting for ORDER_ACK for signal_id: %s", signal_id)
+            if signal_id in pending_orders:
+                pending_orders[signal_id]["status"] = "timeout"
 
     except Exception as e:
         log.exception("Error processing order status for %s: %s", signal_id, e)
@@ -346,6 +528,12 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
         instrument_key = str(contract["exchange_instrument_id"])
         positions = load_positions()
         current_position = positions.get(instrument_key)
+        
+        # Determine if the position is currently active
+        is_valid_position = False
+        if current_position:
+            status = current_position.get("status", "")
+            is_valid_position = status not in ["REJECTED", "CANCELLED", "EXPIRED", "ERROR"]
 
         log.info(
             "Received signal: Action=%s, Position=%s, Qty=%d, Instrument=%s",
@@ -357,10 +545,10 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
 
         # Handle SELL signals - close existing BUY position
         if action == "SELL":
-            if not current_position:
+            if not is_valid_position:
                 return {
                     "status": "ignored",
-                    "message": f"No open position found for {contract['instrument_name']}",
+                    "message": f"No valid open position found for {contract['instrument_name']}",
                 }
 
             log.info(
@@ -369,24 +557,36 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
             )
 
             sig_id = uuid.uuid4().hex
+            
+            # Determine reverse side and quantity
+            pos_side = current_position.get("side", "BUY")
+            reverse_side = "SELL" if pos_side.upper() == "BUY" else "BUY"
+            pos_qty = current_position.get("qty", 0)
 
-            await client.squareoff(
+            # Link the square-off signal to the position so background tracker can pop it on fill
+            positions[instrument_key]["squareoff_signal_id"] = sig_id
+            save_positions(positions)
+
+            await client.place_order(
                 exchange_segment=contract["exchange_segment"],
                 exchange_instrument_id=contract["exchange_instrument_id"],
+                instrument_name=contract["instrument_name"],
                 product_type=product_type,
+                order_type="MARKET",
+                order_side=reverse_side,
+                time_in_force="DAY",
+                order_quantity=pos_qty,
+                limit_price=0.0,
                 signal_id=sig_id,
             )
 
-            # Wait for SQUAREOFF_ACK
-            log.info("Waiting for SQUAREOFF_ACK from OMS (timeout 10s)...")
+            # Wait for ORDER_ACK
+            log.info("Waiting for ORDER_ACK from OMS (timeout 10s)...")
             ack = await client.wait_for_ack(sig_id, timeout=10.0)
 
-            if ack and ack.get("status") in ["FILLED", "COMPLETE"]:
-                # Remove position only after successful squareoff
-                positions.pop(instrument_key, None)
-                save_positions(positions)
+            if ack:
                 log.info(
-                    "Position removed after successful squareoff: %s",
+                    "Square-off order submitted for: %s",
                     contract["instrument_name"],
                 )
 
@@ -395,7 +595,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
                     "msg_type": "SQUAREOFF",
                     "signal_id": sig_id,
                     "instrument": contract["instrument_name"],
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": get_ist_now(),
                     "response": ack,
                 }
             else:
@@ -411,31 +611,44 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
 
         # Handle FLAT position - close existing BUY position
         if position == "flat":
-            if not current_position:
+            if not is_valid_position:
                 return {
                     "status": "ignored",
-                    "message": f"No open position found for {contract['instrument_name']}",
+                    "message": f"No valid open position found for {contract['instrument_name']}",
                 }
 
             log.info("Processing square-off for %s...", contract["instrument_name"])
             sig_id = uuid.uuid4().hex
-            await client.squareoff(
+            
+            # Determine reverse side and quantity
+            pos_side = current_position.get("side", "BUY")
+            reverse_side = "SELL" if pos_side.upper() == "BUY" else "BUY"
+            pos_qty = current_position.get("qty", 0)
+
+            # Link the square-off signal to the position so background tracker can pop it on fill
+            positions[instrument_key]["squareoff_signal_id"] = sig_id
+            save_positions(positions)
+
+            await client.place_order(
                 exchange_segment=contract["exchange_segment"],
                 exchange_instrument_id=contract["exchange_instrument_id"],
+                instrument_name=contract["instrument_name"],
                 product_type=product_type,
+                order_type="MARKET",
+                order_side=reverse_side,
+                time_in_force="DAY",
+                order_quantity=pos_qty,
+                limit_price=0.0,
                 signal_id=sig_id,
             )
 
-            # Wait for SQUAREOFF_ACK
-            log.info("Waiting for SQUAREOFF_ACK from OMS (timeout 10s)...")
+            # Wait for ORDER_ACK
+            log.info("Waiting for ORDER_ACK from OMS (timeout 10s)...")
             ack = await client.wait_for_ack(sig_id, timeout=10.0)
 
-            if ack and ack.get("status") in ["FILLED", "COMPLETE"]:
-                # Remove position only after successful squareoff
-                positions.pop(instrument_key, None)
-                save_positions(positions)
+            if ack:
                 log.info(
-                    "Position removed after successful squareoff: %s",
+                    "Square-off order submitted for: %s",
                     contract["instrument_name"],
                 )
 
@@ -443,7 +656,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
                     "status": "submitted",
                     "msg_type": "SQUAREOFF",
                     "signal_id": sig_id,
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": get_ist_now(),
                     "instrument": contract["instrument_name"],
                     "response": ack,
                 }
@@ -461,7 +674,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
         # Handle BUY signals
         if action == "BUY":
             # Check if position already exists
-            if current_position:
+            if is_valid_position:
                 return {
                     "status": "ignored",
                     "message": f"Position already exists for {contract['instrument_name']}",
@@ -476,7 +689,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
             pending_orders[sig_id] = {
                 "status": "pending",
                 "instrument": contract["instrument_name"],
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": get_ist_now(),
             }
 
             signal_id = await client.place_order(
@@ -526,11 +739,13 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
                 signal = json.loads(post_data.decode("utf-8"))
 
                 # Add alert for incoming signal
-                add_alert({
-                    "type": "SIGNAL",
-                    "message": f"Received {signal.get('action', 'UNKNOWN')} signal",
-                    "data": signal
-                })
+                add_alert(
+                    {
+                        "type": "SIGNAL",
+                        "message": f"Received {signal.get('action', 'UNKNOWN')} signal",
+                        "data": signal,
+                    }
+                )
 
                 # Dispatch to async handler with shorter timeout
                 future = asyncio.run_coroutine_threadsafe(handle_signal(signal), loop)
@@ -637,6 +852,24 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(
                     json.dumps({"status": "error", "message": str(e)}).encode("utf-8")
                 )
+        elif self.path == "/history":
+            # Endpoint to get history
+            try:
+                history = load_history()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps(history).encode("utf-8"))
+            except Exception as e:
+                log.exception("History endpoint error:")
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(
+                    json.dumps({"status": "error", "message": str(e)}).encode("utf-8")
+                )
 
         elif self.path == "/squareoff":
             # Endpoint for manual square-off
@@ -644,7 +877,7 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
                 content_length = int(self.headers["Content-Length"])
                 post_data = self.rfile.read(content_length)
                 squareoff_data = json.loads(post_data.decode("utf-8"))
-                
+
                 instrument_key = squareoff_data.get("instrument_key")
                 if not instrument_key:
                     self.send_response(400)
@@ -652,10 +885,12 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
                     self.send_header("Access-Control-Allow-Origin", "*")
                     self.end_headers()
                     self.wfile.write(
-                        json.dumps({"status": "error", "message": "Missing instrument_key"}).encode()
+                        json.dumps(
+                            {"status": "error", "message": "Missing instrument_key"}
+                        ).encode()
                     )
                     return
-                
+
                 positions = load_positions()
                 if instrument_key not in positions:
                     self.send_response(404)
@@ -663,50 +898,74 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
                     self.send_header("Access-Control-Allow-Origin", "*")
                     self.end_headers()
                     self.wfile.write(
-                        json.dumps({"status": "error", "message": "Position not found"}).encode()
+                        json.dumps(
+                            {"status": "error", "message": "Position not found"}
+                        ).encode()
                     )
                     return
-                
+
                 position = positions[instrument_key]
                 sig_id = uuid.uuid4().hex
-                
+
+                # Determine reverse side and quantity
+                pos_side = position.get("side", "BUY")
+                reverse_side = "SELL" if pos_side.upper() == "BUY" else "BUY"
+                pos_qty = position.get("qty", 0)
+
+                # Link the square-off signal to the position
+                positions[instrument_key]["squareoff_signal_id"] = sig_id
+                save_positions(positions)
+
                 future = asyncio.run_coroutine_threadsafe(
-                    client.squareoff(
+                    client.place_order(
                         exchange_segment=position.get("exchange_segment", "NSEFO"),
                         exchange_instrument_id=int(instrument_key),
+                        instrument_name=position.get("instrument"),
                         product_type="MIS",
+                        order_type="MARKET",
+                        order_side=reverse_side,
+                        time_in_force="DAY",
+                        order_quantity=pos_qty,
+                        limit_price=0.0,
                         signal_id=sig_id,
                     ),
-                    loop
+                    loop,
                 )
                 future.result(timeout=5.0)
-                
-                # Wait for SQUAREOFF_ACK
+
+                # Wait for ORDER_ACK
                 ack_future = asyncio.run_coroutine_threadsafe(
-                    client.wait_for_ack(sig_id, timeout=10.0),
-                    loop
+                    client.wait_for_ack(sig_id, timeout=10.0), loop
                 )
                 ack = ack_future.result(timeout=10.0)
-                
-                if ack and ack.get("status") in ["FILLED", "COMPLETE"]:
-                    positions.pop(instrument_key, None)
-                    save_positions(positions)
-                    add_alert({
-                        "type": "SQUAREOFF",
-                        "message": f"Manually squared off {position['instrument']}",
-                        "instrument": position['instrument']
-                    })
+
+                if ack:
+                    add_alert(
+                        {
+                            "type": "SQUAREOFF",
+                            "message": f"Manual square off order submitted for {position['instrument']}",
+                            "instrument": position["instrument"],
+                        }
+                    )
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.send_header("Access-Control-Allow-Origin", "*")
                     self.end_headers()
-                    self.wfile.write(json.dumps({"status": "success", "message": "Position squared off"}).encode("utf-8"))
+                    self.wfile.write(
+                        json.dumps(
+                            {"status": "success", "message": "Square off order submitted"}
+                        ).encode("utf-8")
+                    )
                 else:
                     self.send_response(500)
                     self.send_header("Content-Type", "application/json")
                     self.send_header("Access-Control-Allow-Origin", "*")
                     self.end_headers()
-                    self.wfile.write(json.dumps({"status": "error", "message": "Squareoff failed"}).encode("utf-8"))
+                    self.wfile.write(
+                        json.dumps(
+                            {"status": "error", "message": "Failed to submit square off order"}
+                        ).encode("utf-8")
+                    )
             except Exception as e:
                 log.exception("Squareoff endpoint error:")
                 self.send_response(500)
@@ -736,7 +995,12 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         # Handle GET requests
-        if self.path == "/status" or self.path == "/positions" or self.path == "/alerts":
+        if (
+            self.path == "/status"
+            or self.path == "/positions"
+            or self.path == "/alerts"
+            or self.path == "/history"
+        ):
             self.do_POST()  # Reuse POST handler for GET
         else:
             self.send_response(404)
@@ -804,6 +1068,9 @@ async def main():
         oms_id = resp.get("oms_order_id", "N/A")
         status = resp.get("status", "")
         signal_id = resp.get("signal_id", "")
+        
+        if not status and msg_type.startswith("ORDER_"):
+            status = msg_type.replace("ORDER_", "")
 
         log.info(
             "[OMS Update] type=%s, oms_id=%s, status=%s, signal_id=%s",
@@ -819,8 +1086,45 @@ async def main():
                 "msg_type": msg_type,
                 "status": status,
                 "oms_order_id": oms_id,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": get_ist_now(),
             }
+
+        # Update positions
+        try:
+            positions = load_positions()
+            updated = False
+            str_oms_id = str(oms_id) if oms_id != "N/A" else "N/A"
+            str_signal_id = str(signal_id) if signal_id else ""
+            
+            for key, pos in list(positions.items()):
+                pos_oms_id = str(pos.get("oms_order_id", ""))
+                pos_sig_id = str(pos.get("signal_id", ""))
+                pos_sq_sig_id = str(pos.get("squareoff_signal_id", ""))
+                
+                # Check if this update belongs to the original opening order
+                if (str_oms_id != "N/A" and pos_oms_id == str_oms_id) or \
+                   (str_signal_id and pos_sig_id == str_signal_id):
+                    # Only update if there is a valid status string
+                    if status:
+                        pos["status"] = status
+                        updated = True
+                
+                # Check if this update belongs to the reverse square-off order
+                elif str_signal_id and pos_sq_sig_id == str_signal_id:
+                    if status in ["FILLED", "COMPLETE"]:
+                        append_to_history(pos, status)
+                        positions.pop(key, None)
+                        updated = True
+                        log.info("Position %s removed due to successful square-off fill.", pos.get("instrument"))
+                    elif status in ["REJECTED", "CANCELLED", "ERROR", "EXPIRED"]:
+                        pos.pop("squareoff_signal_id", None)
+                        updated = True
+                        log.warning("Square-off order failed/cancelled for %s. Unlinked squareoff_signal_id.", pos.get("instrument"))
+
+            if updated:
+                save_positions(positions)
+        except Exception as e:
+            log.error("Failed to update position status in on_response: %s", e)
 
     log.info("OMS Client connected. Starting HTTP thread...")
 
@@ -828,11 +1132,18 @@ async def main():
     http_thread = threading.Thread(target=run_http_server, daemon=True)
     http_thread.start()
 
+    # Start periodic cleanup thread
+    cleanup_thread = threading.Thread(target=periodic_cleanup, daemon=True)
+    cleanup_thread.start()
+
     log.info("Nifty Signal Bridge is fully operational. Press Ctrl+C to terminate.")
     log.info("Endpoints:")
     log.info("  POST /signal - Submit trade signal")
     log.info("  GET  /status?signal_id=xxx - Check order status")
     log.info("  GET  /positions - View current positions")
+    log.info("  GET  /alerts - View recent alerts")
+    log.info("  GET  /history - View position history")
+    log.info("  POST /squareoff - Manually square off a position")
 
     try:
         while True:
@@ -841,6 +1152,7 @@ async def main():
         pass
     finally:
         log.info("Shutting down...")
+        cleanup_stop_event.set()
         await client.disconnect()
         log.info("Shutdown complete.")
 

@@ -1,0 +1,192 @@
+[
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 100,
+    "symbol": "RELIANCE260630C1310",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781668927730,
+    "receivedAt": "2026-06-17T04:02:07.730Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260623C25400",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781669113391,
+    "receivedAt": "2026-06-17T04:05:13.391Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260623C25400",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781673606825,
+    "receivedAt": "2026-06-17T05:20:06.825Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260623C25400",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781673748337,
+    "receivedAt": "2026-06-17T05:22:28.337Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260623C25450",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781674221667,
+    "receivedAt": "2026-06-17T05:30:21.667Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 100,
+    "symbol": "NIFTY260623C25500",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781674801813,
+    "receivedAt": "2026-06-17T05:40:01.813Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 100,
+    "symbol": "NIFTY260623C25500",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781675162992,
+    "receivedAt": "2026-06-17T05:46:02.992Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 100,
+    "symbol": "NIFTY260623C25550",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781675498200,
+    "receivedAt": "2026-06-17T05:51:38.200Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 100,
+    "symbol": "NIFTY260623C25550",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781675595865,
+    "receivedAt": "2026-06-17T05:53:15.865Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260623C25550",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781675639152,
+    "receivedAt": "2026-06-17T05:53:59.152Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260623C25550",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781676006718,
+    "receivedAt": "2026-06-17T06:00:06.718Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 100,
+    "symbol": "NIFTY260623C25550",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781676693088,
+    "receivedAt": "2026-06-17T06:11:33.088Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 100,
+    "symbol": "NIFTY260623C25550",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781677934597,
+    "receivedAt": "2026-06-17T06:32:14.597Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 100,
+    "symbol": "NIFTY260623C25550",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781678077669,
+    "receivedAt": "2026-06-17T06:34:37.669Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260623C25550",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781678120687,
+    "receivedAt": "2026-06-17T06:35:20.687Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 100,
+    "symbol": "NIFTY260623C25550",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781679338260,
+    "receivedAt": "2026-06-17T06:55:38.260Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 100,
+    "symbol": "NIFTY260623C25550",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781679368586,
+    "receivedAt": "2026-06-17T06:56:08.586Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 100,
+    "symbol": "NIFTY260623C25550",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781680151728,
+    "receivedAt": "2026-06-17T07:09:11.728Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260623C25650",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1781680234859,
+    "receivedAt": "2026-06-17T07:10:34.859Z"
+  }
+]

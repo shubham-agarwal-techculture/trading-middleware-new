@@ -1,0 +1,39 @@
+[
+    {
+        "side": "BUY",
+        "qty": 65,
+        "instrument": "NIFTY2662325650CE",
+        "exchange_instrument_id": 56472,
+        "opened_at": "2026-06-17T12:40:37.492533+05:30",
+        "signal_id": "da79bbf041534196b4de708f7166caae",
+        "oms_order_id": "d0056dd9475649048a",
+        "status": "FILLED",
+        "squareoff_signal_id": "737166c06a0b4a8c8108ad490aada4ef",
+        "final_status": "FILLED",
+        "closed_at": "2026-06-17T12:41:13.955717+05:30"
+    },
+    {
+        "side": "BUY",
+        "qty": 100,
+        "instrument": "NIFTY2662325550CE",
+        "exchange_instrument_id": 56462,
+        "opened_at": "2026-06-17T12:39:12.257219+05:30",
+        "signal_id": "6b0026f0bfd343988ca5341c8dd2bc46",
+        "oms_order_id": "c92fbbd26e37428f84",
+        "status": "REJECTED",
+        "final_status": "REJECTED",
+        "closed_at": "2026-06-17T12:39:13.545865+05:30"
+    },
+    {
+        "side": "BUY",
+        "qty": 100,
+        "instrument": "NIFTY2662325550CE",
+        "exchange_instrument_id": 56462,
+        "opened_at": "2026-06-17T12:26:11.496069+05:30",
+        "signal_id": "d49b6dc5700746fbab32a67e19bac110",
+        "oms_order_id": "65d423653e34483da9",
+        "status": "REJECTED",
+        "final_status": "REJECTED",
+        "closed_at": "2026-06-17T12:38:53.495536+05:30"
+    }
+]

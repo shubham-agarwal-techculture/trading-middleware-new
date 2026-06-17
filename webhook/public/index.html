@@ -33,10 +33,29 @@
             font-size: 28px;
             margin-bottom: 8px;
         }
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
+        .tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .tab-btn {
+            background: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #6b7280;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+        .tab-btn:hover {
+            background: #f3f4f6;
+        }
+        .tab-btn.active {
+            background: #3b82f6;
+            color: white;
         }
         .card {
             background: #fff;
@@ -44,13 +63,21 @@
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
-        .card h2 {
-            font-size: 20px;
-            color: #1a1a1a;
-            margin-bottom: 16px;
+        .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 16px;
+        }
+        .card h2 {
+            font-size: 20px;
+            color: #1a1a1a;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
         }
         .position-item {
             padding: 16px;
@@ -107,6 +134,36 @@
         .alert-message {
             font-size: 14px;
         }
+        .history-item {
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .history-item h3 {
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+        .history-item p {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 2px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-badge.filled, .status-badge.complete {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status-badge.rejected, .status-badge.cancelled, .status-badge.expired, .status-badge.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
         .refresh-btn {
             background: #3b82f6;
             color: white;
@@ -131,27 +188,60 @@
             <p>Monitor your positions and alerts</p>
         </header>
 
-        <div class="grid">
-            <div class="card">
-                <h2>
-                    Open Positions
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('positions')">Open Positions</button>
+            <button class="tab-btn" onclick="switchTab('alerts')">Alerts</button>
+            <button class="tab-btn" onclick="switchTab('history')">History</button>
+        </div>
+
+        <div class="card">
+            <div id="positions-tab" class="tab-content active">
+                <div class="card-header">
+                    <h2>Open Positions</h2>
                     <button class="refresh-btn" onclick="fetchPositions()">Refresh</button>
-                </h2>
+                </div>
                 <div id="positions-container"></div>
             </div>
 
-            <div class="card">
-                <h2>
-                    Alerts
+            <div id="alerts-tab" class="tab-content">
+                <div class="card-header">
+                    <h2>Alerts</h2>
                     <button class="refresh-btn" onclick="fetchAlerts()">Refresh</button>
-                </h2>
+                </div>
                 <div id="alerts-container"></div>
+            </div>
+
+            <div id="history-tab" class="tab-content">
+                <div class="card-header">
+                    <h2>Position History</h2>
+                    <button class="refresh-btn" onclick="fetchHistory()">Refresh</button>
+                </div>
+                <div id="history-container"></div>
             </div>
         </div>
     </div>
 
     <script>
         const API_BASE = 'http://localhost:5002';
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            event.target.classList.add('active');
+
+            // Fetch data for selected tab
+            if (tabName === 'positions') fetchPositions();
+            if (tabName === 'alerts') fetchAlerts();
+            if (tabName === 'history') fetchHistory();
+        }
 
         async function fetchPositions() {
             try {
@@ -173,13 +263,16 @@
 
             container.innerHTML = keys.map(key => {
                 const pos = positions[key];
+                const statusStr = pos.status ? ` | Status: <strong>${pos.status}</strong>` : '';
+                const isFilled = pos.status === 'FILLED' || pos.status === 'COMPLETE';
+                const squareOffBtn = isFilled ? `<button class="squareoff-btn" onclick="squareOff('${key}')">Square Off</button>` : '';
                 return `
                     <div class="position-item">
                         <div class="position-info">
                             <h3>${pos.instrument}</h3>
-                            <p>Quantity: ${pos.qty} | Opened: ${new Date(pos.opened_at).toLocaleString()}</p>
+                            <p>Quantity: ${pos.qty} | Opened: ${new Date(pos.opened_at + (pos.opened_at.includes('+') || pos.opened_at.endsWith('Z') ? '' : 'Z')).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${statusStr}</p>
                         </div>
-                        <button class="squareoff-btn" onclick="squareOff('${key}')">Square Off</button>
+                        ${squareOffBtn}
                     </div>
                 `;
             }).join('');
@@ -226,8 +319,35 @@
 
             container.innerHTML = alerts.map(alert => `
                 <div class="alert-item ${alert.type.toLowerCase()}">
-                    <div class="alert-timestamp">${new Date(alert.timestamp).toLocaleString()}</div>
+                    <div class="alert-timestamp">${new Date(alert.timestamp + (alert.timestamp.includes('+') || alert.timestamp.endsWith('Z') ? '' : 'Z')).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</div>
                     <div class="alert-message">${alert.message}</div>
+                </div>
+            `).join('');
+        }
+
+        async function fetchHistory() {
+            try {
+                const response = await fetch(`${API_BASE}/history`);
+                const history = await response.json();
+                renderHistory(history);
+            } catch (error) {
+                console.error('Error fetching history:', error);
+            }
+        }
+
+        function renderHistory(history) {
+            const container = document.getElementById('history-container');
+            if (history.length === 0) {
+                container.innerHTML = '<div class="no-data">No history available</div>';
+                return;
+            }
+
+            container.innerHTML = history.map(item => `
+                <div class="history-item">
+                    <h3>${item.instrument} <span class="status-badge ${item.final_status.toLowerCase()}">${item.final_status}</span></h3>
+                    <p>Quantity: ${item.qty}</p>
+                    <p>Opened: ${new Date(item.opened_at + (item.opened_at.includes('+') || item.opened_at.endsWith('Z') ? '' : 'Z')).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+                    <p>Closed: ${new Date(item.closed_at + (item.closed_at.includes('+') || item.closed_at.endsWith('Z') ? '' : 'Z')).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
                 </div>
             `).join('');
         }

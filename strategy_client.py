@@ -51,8 +51,12 @@ import asyncio
 import json
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Any, Callable, Coroutine, Dict, Optional
+
+IST = timezone(timedelta(hours=5, minutes=30))
+def get_ist_now():
+    return datetime.now(IST).isoformat()
 
 import zmq
 import zmq.asyncio
@@ -230,7 +234,7 @@ class OMSClient:
             "msg_type": "PLACE_ORDER",
             "strategy_id": self.strategy_id,
             "signal_id": sid,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": get_ist_now(),
             "exchange_segment": exchange_segment,
             "exchange_instrument_id": exchange_instrument_id,
             "instrument_name": instrument_name,
@@ -353,7 +357,7 @@ class OMSClient:
             "msg_type": "CANCEL_ORDER",
             "strategy_id": self.strategy_id,
             "signal_id": signal_id or uuid.uuid4().hex,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": get_ist_now(),
             "oms_order_id": oms_order_id,
             "reason": reason,
         }
@@ -376,7 +380,7 @@ class OMSClient:
             "msg_type": "MODIFY_ORDER",
             "strategy_id": self.strategy_id,
             "signal_id": signal_id or uuid.uuid4().hex,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": get_ist_now(),
             "oms_order_id": oms_order_id,
             "new_order_quantity": new_order_quantity,
             "new_limit_price": new_limit_price,
@@ -400,7 +404,7 @@ class OMSClient:
             "msg_type": "SQUAREOFF",
             "strategy_id": self.strategy_id,
             "signal_id": signal_id or uuid.uuid4().hex,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": get_ist_now(),
             "exchange_segment": exchange_segment,
             "exchange_instrument_id": exchange_instrument_id,
             "product_type": product_type,
@@ -418,7 +422,7 @@ class OMSClient:
             "msg_type": "CANCEL_ALL",
             "strategy_id": self.strategy_id,
             "signal_id": signal_id or uuid.uuid4().hex,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": get_ist_now(),
             "exchange_segment": exchange_segment,
             "exchange_instrument_id": exchange_instrument_id,
         }
