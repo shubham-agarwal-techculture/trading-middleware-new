@@ -33,6 +33,9 @@ class RESTSignalReceiver extends SignalSource {
 
     setupRoutes() {
         this.app.post('/signal', (req, res) => {
+
+            console.log(req.body)
+            
             const { symbol, action, quantity, position } = req.body;
 
             if (!position || !action || !quantity) {
