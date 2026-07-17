@@ -6,213 +6,333 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trading Dashboard</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        :root {
+            --bg: #0b1020;
+            --bg-2: #121a30;
+            --panel: #16203a;
+            --panel-2: #1c294a;
+            --border: #243357;
+            --text: #e6ebf5;
+            --muted: #93a0bd;
+            --accent: #3b82f6;
+            --accent-2: #2563eb;
+            --green: #22c55e;
+            --green-bg: rgba(34, 197, 94, 0.12);
+            --red: #ef4444;
+            --red-bg: rgba(239, 68, 68, 0.12);
+            --amber: #f59e0b;
+            --amber-bg: rgba(245, 158, 11, 0.12);
         }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
+            background: radial-gradient(1200px 600px at 100% -10%, #17213c 0%, var(--bg) 55%);
+            color: var(--text);
             padding: 20px;
+            min-height: 100vh;
         }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
+        .container { max-width: 1500px; margin: 0 auto; }
+        a { color: var(--accent); }
+
         header {
-            background: #fff;
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 24px;
-        }
-        header h1 {
-            color: #1a1a1a;
-            font-size: 28px;
-            margin-bottom: 8px;
-        }
-        .tabs {
+            background: var(--panel);
+            padding: 20px 24px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
             display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
             gap: 12px;
-            margin-bottom: 24px;
         }
+        header .title h1 { font-size: 24px; letter-spacing: 0.3px; }
+        header .title p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+        .header-controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .conn {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 13px; color: var(--muted);
+            background: var(--bg-2); padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border);
+        }
+        .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+        .dot.online { background: var(--green); box-shadow: 0 0 8px var(--green); }
+        .dot.offline { background: var(--red); box-shadow: 0 0 8px var(--red); }
+        .switch { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); cursor: pointer; }
+        .switch input { accent-color: var(--accent); width: 16px; height: 16px; }
+        .last-updated { font-size: 12px; color: var(--muted); }
+
+        /* KPI cards */
+        .kpis {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .kpi {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+        }
+        .kpi .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); }
+        .kpi .value { font-size: 24px; font-weight: 700; margin-top: 8px; }
+        .kpi .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+        .pos { color: var(--green); }
+        .neg { color: var(--red); }
+
+        .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
         .tab-btn {
-            background: #fff;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--muted);
+            transition: all 0.15s;
+        }
+        .tab-btn:hover { background: var(--panel-2); color: var(--text); }
+        .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+        .card {
+            background: var(--panel);
+            padding: 20px 22px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+        }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+        .card h2 { font-size: 18px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .refresh-btn, .btn {
+            background: var(--accent);
+            color: #fff;
             border: none;
-            padding: 12px 24px;
+            padding: 9px 16px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            color: #6b7280;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            transition: all 0.2s;
-        }
-        .tab-btn:hover {
-            background: #f3f4f6;
-        }
-        .tab-btn.active {
-            background: #3b82f6;
-            color: white;
-        }
-        .card {
-            background: #fff;
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-        .card h2 {
-            font-size: 20px;
-            color: #1a1a1a;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        .position-item {
-            padding: 16px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .position-info {
-            flex: 1;
-        }
-        .position-info h3 {
-            font-size: 16px;
-            margin-bottom: 4px;
-        }
-        .position-info p {
-            font-size: 14px;
-            color: #6b7280;
-        }
-        .position-metric {
-            display: inline-block;
-            margin-top: 6px;
             font-size: 13px;
             font-weight: 600;
-            color: #374151;
+            transition: background 0.15s;
         }
-        .position-metric.pnl {
-            color: #166534;
+        .refresh-btn:hover, .btn:hover { background: var(--accent-2); }
+        .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+        .btn.ghost:hover { color: var(--text); background: var(--panel-2); }
+        .btn.danger { background: var(--red); }
+        .btn.danger:hover { background: #dc2626; }
+
+        /* Tables */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+        thead th {
+            text-align: left; padding: 10px 12px; color: var(--muted);
+            font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border); white-space: nowrap;
         }
-        .squareoff-btn {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: background 0.2s;
+        tbody td { padding: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        tbody tr:hover { background: var(--panel-2); }
+        td.num, th.num { text-align: right; }
+        .instrument-name { font-weight: 600; }
+        .instrument-sub { font-size: 12px; color: var(--muted); }
+
+        .badge {
+            display: inline-block; padding: 3px 9px; border-radius: 999px;
+            font-size: 11.5px; font-weight: 700; letter-spacing: 0.3px;
         }
-        .squareoff-btn:hover {
-            background: #dc2626;
-        }
+        .badge.buy { background: var(--green-bg); color: var(--green); }
+        .badge.sell { background: var(--red-bg); color: var(--red); }
+        .badge.filled, .badge.complete { background: var(--green-bg); color: var(--green); }
+        .badge.rejected, .badge.cancelled, .badge.expired, .badge.error { background: var(--red-bg); color: var(--red); }
+        .badge.pending, .badge.new, .badge.open, .badge.acknowledged { background: var(--amber-bg); color: var(--amber); }
+        .badge.seg { background: var(--bg-2); color: var(--muted); border: 1px solid var(--border); }
+
+        /* Alerts */
         .alert-item {
-            padding: 12px;
-            border-left: 4px solid #3b82f6;
-            background: #f8fafc;
-            margin-bottom: 8px;
-            border-radius: 4px;
+            padding: 12px 14px; border-left: 4px solid var(--accent);
+            background: var(--bg-2); margin-bottom: 10px; border-radius: 8px;
         }
-        .alert-item.squareoff {
-            border-left-color: #10b981;
+        .alert-item.squareoff { border-left-color: var(--green); }
+        .alert-item.signal { border-left-color: var(--amber); }
+        .alert-timestamp { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+        .alert-message { font-size: 14px; }
+
+        .no-data { color: var(--muted); text-align: center; padding: 32px; }
+
+        /* Order form */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        .field label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+        .field input, .field select {
+            background: var(--bg-2); border: 1px solid var(--border); color: var(--text);
+            padding: 10px 12px; border-radius: 8px; font-size: 14px; outline: none;
         }
-        .alert-item.signal {
-            border-left-color: #f59e0b;
-        }
-        .alert-timestamp {
-            font-size: 12px;
-            color: #9ca3af;
-            margin-bottom: 4px;
-        }
-        .alert-message {
-            font-size: 14px;
-        }
-        .history-item {
-            padding: 16px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            margin-bottom: 12px;
-        }
-        .history-item h3 {
-            font-size: 16px;
-            margin-bottom: 4px;
-        }
-        .history-item p {
-            font-size: 14px;
-            color: #6b7280;
-            margin-bottom: 2px;
-        }
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .status-badge.filled, .status-badge.complete {
-            background: #dcfce7;
-            color: #166534;
-        }
-        .status-badge.rejected, .status-badge.cancelled, .status-badge.expired, .status-badge.error {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        .refresh-btn {
-            background: #3b82f6;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-        }
-        .no-data {
-            color: #9ca3af;
-            text-align: center;
-            padding: 24px;
-        }
+        .field input:focus, .field select:focus { border-color: var(--accent); }
+        .field .hint { font-size: 11px; color: var(--muted); }
+        .seg-toggle { display: inline-flex; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        .seg-toggle button { background: transparent; border: none; color: var(--muted); padding: 8px 16px; cursor: pointer; font-weight: 600; font-size: 13px; }
+        .seg-toggle button.active { background: var(--accent); color: #fff; }
+        .form-actions { display: flex; gap: 12px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+        .order-result { font-size: 13px; padding: 10px 14px; border-radius: 8px; display: none; }
+        .order-result.ok { display: block; background: var(--green-bg); color: var(--green); }
+        .order-result.err { display: block; background: var(--red-bg); color: var(--red); }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Trading Dashboard</h1>
-            <p>Monitor your positions and alerts</p>
+            <div class="title">
+                <h1>Trading Dashboard</h1>
+                <p>NSE &middot; BSE &middot; MCX order &amp; position management</p>
+            </div>
+            <div class="header-controls">
+                <div class="conn"><span id="conn-dot" class="dot"></span><span id="conn-text">Connecting…</span></div>
+                <span class="last-updated" id="last-updated">—</span>
+                <label class="switch"><input type="checkbox" id="autorefresh" checked> Auto-refresh</label>
+                <button class="refresh-btn" onclick="refreshAll()">Refresh</button>
+            </div>
         </header>
 
+        <div class="kpis">
+            <div class="kpi">
+                <div class="label">Open Positions</div>
+                <div class="value" id="kpi-open">0</div>
+                <div class="sub" id="kpi-open-sub">0 filled &middot; 0 pending</div>
+            </div>
+            <div class="kpi">
+                <div class="label">Unrealized P&amp;L</div>
+                <div class="value" id="kpi-unrealized">₹0.00</div>
+                <div class="sub">Across open filled positions</div>
+            </div>
+            <div class="kpi">
+                <div class="label">Realized P&amp;L (Today)</div>
+                <div class="value" id="kpi-realized">₹0.00</div>
+                <div class="sub" id="kpi-realized-sub">From closed trades</div>
+            </div>
+            <div class="kpi">
+                <div class="label">Closed Trades</div>
+                <div class="value" id="kpi-trades">0</div>
+                <div class="sub" id="kpi-winrate">Win rate: —</div>
+            </div>
+        </div>
+
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('positions')">Open Positions</button>
-            <button class="tab-btn" onclick="switchTab('alerts')">Alerts</button>
-            <button class="tab-btn" onclick="switchTab('history')">History</button>
+            <button class="tab-btn active" data-tab="positions" onclick="switchTab('positions')">Open Positions</button>
+            <button class="tab-btn" data-tab="order" onclick="switchTab('order')">New Order</button>
+            <button class="tab-btn" data-tab="alerts" onclick="switchTab('alerts')">Alerts</button>
+            <button class="tab-btn" data-tab="history" onclick="switchTab('history')">History</button>
         </div>
 
         <div class="card">
+            <!-- POSITIONS -->
             <div id="positions-tab" class="tab-content active">
                 <div class="card-header">
                     <h2>Open Positions</h2>
                     <button class="refresh-btn" onclick="fetchPositions()">Refresh</button>
                 </div>
-                <div id="positions-container"></div>
+                <div class="table-wrap">
+                    <table id="positions-table">
+                        <thead>
+                            <tr>
+                                <th>Instrument</th>
+                                <th>Exchange</th>
+                                <th>Side</th>
+                                <th class="num">Qty</th>
+                                <th class="num">Entry</th>
+                                <th class="num">LTP</th>
+                                <th class="num">P&amp;L</th>
+                                <th>Status</th>
+                                <th>Opened</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="positions-body"></tbody>
+                    </table>
+                </div>
+                <div id="positions-empty" class="no-data">No open positions</div>
             </div>
 
+            <!-- NEW ORDER -->
+            <div id="order-tab" class="tab-content">
+                <div class="card-header">
+                    <h2>Place Order</h2>
+                    <div class="seg-toggle">
+                        <button id="mode-symbol" class="active" onclick="setOrderMode('symbol')">By Symbol</button>
+                        <button id="mode-instrument" onclick="setOrderMode('instrument')">By Instrument ID</button>
+                    </div>
+                </div>
+                <form id="order-form" onsubmit="submitOrder(event)">
+                    <div class="form-grid">
+                        <div class="field" id="field-symbol">
+                            <label>Symbol / Ticker</label>
+                            <input type="text" id="o-symbol" placeholder="e.g. NIFTY260721C25150, RELIANCE, BSX260723C81100">
+                            <span class="hint">TradingView option ticker, exchange description, or equity symbol</span>
+                        </div>
+                        <div class="field hidden" id="field-segment">
+                            <label>Exchange Segment</label>
+                            <select id="o-segment">
+                                <option value="NSEFO">NSEFO</option>
+                                <option value="NSECM">NSECM</option>
+                                <option value="BSEFO">BSEFO</option>
+                                <option value="BSECM">BSECM</option>
+                                <option value="MCXFO">MCXFO</option>
+                                <option value="NSECDS">NSECDS</option>
+                            </select>
+                        </div>
+                        <div class="field hidden" id="field-instrument">
+                            <label>Exchange Instrument ID</label>
+                            <input type="number" id="o-instrument" placeholder="e.g. 42383">
+                        </div>
+                        <div class="field">
+                            <label>Action</label>
+                            <select id="o-action">
+                                <option value="BUY">BUY</option>
+                                <option value="SELL">SELL</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Position</label>
+                            <select id="o-position">
+                                <option value="long">long</option>
+                                <option value="flat">flat (square-off)</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Quantity</label>
+                            <input type="number" id="o-quantity" placeholder="e.g. 65" min="1">
+                            <span class="hint">Leave blank to use 1 lot</span>
+                        </div>
+                        <div class="field">
+                            <label>Order Type</label>
+                            <select id="o-ordertype" onchange="toggleLimitPrice()">
+                                <option value="LIMIT">LIMIT</option>
+                                <option value="MARKET">MARKET</option>
+                            </select>
+                        </div>
+                        <div class="field" id="field-limit">
+                            <label>Limit Price</label>
+                            <input type="number" step="0.05" id="o-limit" placeholder="Blank = use live LTP">
+                        </div>
+                        <div class="field">
+                            <label>Product Type</label>
+                            <select id="o-product">
+                                <option value="MIS">MIS</option>
+                                <option value="NRML">NRML</option>
+                                <option value="CNC">CNC</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn" id="order-submit">Submit Order</button>
+                        <button type="button" class="btn ghost" onclick="resetOrderForm()">Reset</button>
+                        <span id="order-result" class="order-result"></span>
+                    </div>
+                </form>
+            </div>
+
+            <!-- ALERTS -->
             <div id="alerts-tab" class="tab-content">
                 <div class="card-header">
                     <h2>Alerts</h2>
@@ -221,184 +341,366 @@
                 <div id="alerts-container"></div>
             </div>
 
+            <!-- HISTORY -->
             <div id="history-tab" class="tab-content">
                 <div class="card-header">
                     <h2>Position History</h2>
-                    <button class="refresh-btn" onclick="fetchHistory()">Refresh</button>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <input type="text" id="history-search" placeholder="Filter instrument…" oninput="renderHistory()"
+                            style="background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;outline:none;">
+                        <button class="refresh-btn" onclick="fetchHistory()">Refresh</button>
+                    </div>
                 </div>
-                <div id="history-container"></div>
+                <div class="table-wrap">
+                    <table id="history-table">
+                        <thead>
+                            <tr>
+                                <th>Instrument</th>
+                                <th>Exchange</th>
+                                <th>Side</th>
+                                <th class="num">Qty</th>
+                                <th class="num">Entry</th>
+                                <th class="num">Exit</th>
+                                <th class="num">P&amp;L</th>
+                                <th>Result</th>
+                                <th>Opened</th>
+                                <th>Closed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-body"></tbody>
+                    </table>
+                </div>
+                <div id="history-empty" class="no-data">No history available</div>
             </div>
         </div>
     </div>
 
     <script>
         const API_BASE = 'http://localhost:5002';
+        let historyCache = [];
+
+        /* ---------- helpers ---------- */
+        function fmtNum(v, digits = 2) {
+            if (v === null || v === undefined || Number.isNaN(Number(v))) return '—';
+            return Number(v).toLocaleString('en-IN', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+        }
+        function fmtMoney(v) {
+            if (v === null || v === undefined || Number.isNaN(Number(v))) return '₹—';
+            const n = Number(v);
+            const sign = n < 0 ? '-' : '';
+            return `${sign}₹${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        function pnlClass(v) {
+            if (v === null || v === undefined || Number.isNaN(Number(v))) return '';
+            return Number(v) > 0 ? 'pos' : Number(v) < 0 ? 'neg' : '';
+        }
+        function fmtDate(s) {
+            if (!s) return '—';
+            const iso = s + (s.includes('+') || s.endsWith('Z') ? '' : 'Z');
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return s;
+            return d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+        }
+        function setConnection(online) {
+            const dot = document.getElementById('conn-dot');
+            const txt = document.getElementById('conn-text');
+            dot.className = 'dot ' + (online ? 'online' : 'offline');
+            txt.textContent = online ? 'Connected' : 'Disconnected';
+        }
+        function stamp() {
+            document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' });
+        }
+
+        /* Best-effort realized P&L from a closed/open record */
+        function computePnl(rec) {
+            const entry = Number(rec.entry_price ?? rec.avg_price ?? rec.fill_price ?? rec.price ?? rec.limit_price);
+            const exit = Number(rec.current_ltp ?? rec.ltp ?? rec.exit_price);
+            const qty = Number(rec.qty ?? 1);
+            if (!Number.isFinite(entry) || !Number.isFinite(exit) || !Number.isFinite(qty)) return null;
+            const side = String(rec.side || 'BUY').toUpperCase();
+            return side === 'SELL' ? (entry - exit) * qty : (exit - entry) * qty;
+        }
 
         function switchTab(tabName) {
-            // Hide all tabs
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-
-            // Show selected tab
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(`${tabName}-tab`).classList.add('active');
-            event.target.classList.add('active');
-
-            // Fetch data for selected tab
+            document.querySelector(`.tab-btn[data-tab="${tabName}"]`).classList.add('active');
             if (tabName === 'positions') fetchPositions();
             if (tabName === 'alerts') fetchAlerts();
             if (tabName === 'history') fetchHistory();
         }
 
-        function formatMetricValue(value) {
-            if (value === null || value === undefined || Number.isNaN(Number(value))) {
-                return 'N/A';
-            }
-            return Number(value).toFixed(2);
-        }
-
+        /* ---------- positions ---------- */
         async function fetchPositions() {
             try {
-                console.log('Fetching positions from', `${API_BASE}/positions`);
-                const response = await fetch(`${API_BASE}/positions`);
-                console.log('Positions response status:', response.status);
-                const positions = await response.json();
-                console.log('Positions data:', positions);
+                const res = await fetch(`${API_BASE}/positions`);
+                const positions = await res.json();
+                setConnection(true);
                 renderPositions(positions);
-            } catch (error) {
-                console.error('Error fetching positions:', error);
+                stamp();
+            } catch (e) {
+                console.error('positions error', e);
+                setConnection(false);
             }
         }
 
         function renderPositions(positions) {
-            const container = document.getElementById('positions-container');
+            const body = document.getElementById('positions-body');
+            const empty = document.getElementById('positions-empty');
+            const table = document.getElementById('positions-table');
             const keys = Object.keys(positions || {});
-            console.log('Rendering positions. Keys:', keys, 'Positions:', positions);
+
+            let openCount = 0, filledCount = 0, pendingCount = 0, totalUnrealized = 0, hasUnrealized = false;
+
             if (keys.length === 0) {
-                container.innerHTML = '<div class="no-data">No open positions</div>';
-                return;
+                body.innerHTML = '';
+                table.classList.add('hidden');
+                empty.classList.remove('hidden');
+            } else {
+                table.classList.remove('hidden');
+                empty.classList.add('hidden');
+                body.innerHTML = keys.map(key => {
+                    const p = positions[key];
+                    openCount++;
+                    const status = (p.status || '').toUpperCase();
+                    const isFilled = status === 'FILLED' || status === 'COMPLETE';
+                    if (isFilled) filledCount++; else pendingCount++;
+
+                    const dv = p.display_values || {};
+                    let entry = p.entry_price ?? dv.entry_price;
+                    let ltp = dv.current_ltp ?? dv.ltp ?? p.current_ltp;
+                    let pnl = dv.kind === 'pnl' ? dv.value : computePnl(p);
+                    if (pnl !== null && pnl !== undefined && Number.isFinite(Number(pnl))) { totalUnrealized += Number(pnl); hasUnrealized = true; }
+
+                    const seg = p.exchange_segment || '—';
+                    const side = (p.side || 'BUY').toUpperCase();
+                    const sqBtn = isFilled ? `<button class="btn danger" onclick="squareOff('${key}')">Square Off</button>` : '';
+
+                    return `
+                        <tr>
+                            <td>
+                                <div class="instrument-name">${p.instrument || key}</div>
+                                <div class="instrument-sub">ID: ${p.exchange_instrument_id ?? key}</div>
+                            </td>
+                            <td><span class="badge seg">${seg}</span></td>
+                            <td><span class="badge ${side.toLowerCase()}">${side}</span></td>
+                            <td class="num">${p.qty ?? '—'}</td>
+                            <td class="num">${fmtNum(entry)}</td>
+                            <td class="num">${fmtNum(ltp)}</td>
+                            <td class="num ${pnlClass(pnl)}">${pnl === null || pnl === undefined ? '—' : fmtMoney(pnl)}</td>
+                            <td><span class="badge ${status.toLowerCase()}">${status || 'N/A'}</span></td>
+                            <td>${fmtDate(p.opened_at)}</td>
+                            <td>${sqBtn}</td>
+                        </tr>`;
+                }).join('');
             }
 
-            container.innerHTML = keys.map(key => {
-                const pos = positions[key];
-                const statusStr = pos.status ? ` | Status: <strong>${pos.status}</strong>` : '';
-                const isFilled = pos.status === 'FILLED' || pos.status === 'COMPLETE';
-                const squareOffBtn = isFilled ? `<button class="squareoff-btn" onclick="squareOff('${key}')">Square Off</button>` : '';
-                const displayValues = pos.display_values || {};
-                let metricHtml = '';
-
-                if (displayValues.kind === 'pnl') {
-                    metricHtml = `<div class="position-metric pnl">P/L: <strong>${formatMetricValue(displayValues.value)}</strong></div>`;
-                } else {
-                    metricHtml = `<div class="position-metric">LTP: <strong>${formatMetricValue(displayValues.ltp)}</strong> | Underlying: <strong>${formatMetricValue(displayValues.underlying)}</strong></div>`;
-                }
-
-                return `
-                    <div class="position-item">
-                        <div class="position-info">
-                            <h3>${pos.instrument}</h3>
-                            <p>Quantity: ${pos.qty} | Opened: ${new Date(pos.opened_at + (pos.opened_at.includes('+') || pos.opened_at.endsWith('Z') ? '' : 'Z')).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${statusStr}</p>
-                            ${metricHtml}
-                        </div>
-                        ${squareOffBtn}
-                    </div>
-                `;
-            }).join('');
+            document.getElementById('kpi-open').textContent = openCount;
+            document.getElementById('kpi-open-sub').textContent = `${filledCount} filled · ${pendingCount} pending`;
+            const uEl = document.getElementById('kpi-unrealized');
+            uEl.textContent = hasUnrealized ? fmtMoney(totalUnrealized) : '₹—';
+            uEl.className = 'value ' + pnlClass(hasUnrealized ? totalUnrealized : null);
         }
 
         async function squareOff(instrumentKey) {
-            if (!confirm('Are you sure you want to square off this position?')) return;
+            if (!confirm('Square off this position?')) return;
             try {
-                const response = await fetch(`${API_BASE}/squareoff`, {
+                const res = await fetch(`${API_BASE}/squareoff`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ instrument_key: instrumentKey })
                 });
-                const result = await response.json();
+                const result = await res.json();
                 if (result.status === 'success') {
-                    alert('Position squared off successfully!');
-                    fetchPositions();
-                    fetchAlerts();
+                    fetchPositions(); fetchAlerts();
                 } else {
-                    alert('Error: ' + result.message);
+                    alert('Error: ' + (result.message || 'square-off failed'));
                 }
-            } catch (error) {
-                console.error('Error squaring off:', error);
+            } catch (e) {
+                console.error(e);
                 alert('Error squaring off position');
             }
         }
 
-        async function fetchAlerts() {
+        /* ---------- new order ---------- */
+        let orderMode = 'symbol';
+        function setOrderMode(mode) {
+            orderMode = mode;
+            document.getElementById('mode-symbol').classList.toggle('active', mode === 'symbol');
+            document.getElementById('mode-instrument').classList.toggle('active', mode === 'instrument');
+            document.getElementById('field-symbol').classList.toggle('hidden', mode !== 'symbol');
+            document.getElementById('field-segment').classList.toggle('hidden', mode !== 'instrument');
+            document.getElementById('field-instrument').classList.toggle('hidden', mode !== 'instrument');
+        }
+        function toggleLimitPrice() {
+            const isLimit = document.getElementById('o-ordertype').value === 'LIMIT';
+            document.getElementById('field-limit').classList.toggle('hidden', !isLimit);
+        }
+        function resetOrderForm() {
+            document.getElementById('order-form').reset();
+            const r = document.getElementById('order-result');
+            r.className = 'order-result';
+            r.textContent = '';
+            toggleLimitPrice();
+        }
+        async function submitOrder(evt) {
+            evt.preventDefault();
+            const resultEl = document.getElementById('order-result');
+            const btn = document.getElementById('order-submit');
+            const payload = {
+                action: document.getElementById('o-action').value,
+                position: document.getElementById('o-position').value,
+                orderType: document.getElementById('o-ordertype').value,
+                productType: document.getElementById('o-product').value,
+            };
+            const qty = document.getElementById('o-quantity').value;
+            if (qty) payload.quantity = Number(qty);
+            if (document.getElementById('o-ordertype').value === 'LIMIT') {
+                const lp = document.getElementById('o-limit').value;
+                if (lp) payload.limitPrice = Number(lp);
+            }
+            if (orderMode === 'symbol') {
+                const sym = document.getElementById('o-symbol').value.trim();
+                if (!sym) { showOrderResult(false, 'Symbol is required'); return; }
+                payload.symbol = sym;
+            } else {
+                const seg = document.getElementById('o-segment').value;
+                const iid = document.getElementById('o-instrument').value;
+                if (!iid) { showOrderResult(false, 'Instrument ID is required'); return; }
+                payload.exchange_segment = seg;
+                payload.exchange_instrument_id = Number(iid);
+            }
+
+            btn.disabled = true; btn.textContent = 'Submitting…';
             try {
-                console.log('Fetching alerts from', `${API_BASE}/alerts`);
-                const response = await fetch(`${API_BASE}/alerts`);
-                console.log('Alerts response status:', response.status);
-                const alerts = await response.json();
-                console.log('Alerts data:', alerts);
-                renderAlerts(alerts);
-            } catch (error) {
-                console.error('Error fetching alerts:', error);
+                const res = await fetch(`${API_BASE}/signal`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                const status = (data.status || '').toLowerCase();
+                const ok = ['pending', 'submitted', 'processing', 'success'].includes(status);
+                showOrderResult(ok, `${data.status || 'unknown'}: ${data.message || data.instrument || 'order received'}`);
+                fetchPositions(); fetchAlerts();
+            } catch (e) {
+                showOrderResult(false, 'Request failed: ' + e.message);
+            } finally {
+                btn.disabled = false; btn.textContent = 'Submit Order';
             }
         }
+        function showOrderResult(ok, msg) {
+            const r = document.getElementById('order-result');
+            r.className = 'order-result ' + (ok ? 'ok' : 'err');
+            r.textContent = msg;
+        }
 
+        /* ---------- alerts ---------- */
+        async function fetchAlerts() {
+            try {
+                const res = await fetch(`${API_BASE}/alerts`);
+                const alerts = await res.json();
+                setConnection(true);
+                renderAlerts(alerts);
+                stamp();
+            } catch (e) {
+                console.error('alerts error', e);
+                setConnection(false);
+            }
+        }
         function renderAlerts(alerts) {
             const container = document.getElementById('alerts-container');
-            console.log('Rendering alerts:', alerts);
-            if (alerts.length === 0) {
+            if (!alerts || alerts.length === 0) {
                 container.innerHTML = '<div class="no-data">No alerts</div>';
                 return;
             }
-
-            container.innerHTML = alerts.map(alert => `
-                <div class="alert-item ${alert.type.toLowerCase()}">
-                    <div class="alert-timestamp">${new Date(alert.timestamp + (alert.timestamp.includes('+') || alert.timestamp.endsWith('Z') ? '' : 'Z')).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</div>
-                    <div class="alert-message">${alert.message}</div>
-                </div>
-            `).join('');
+            container.innerHTML = alerts.map(a => `
+                <div class="alert-item ${(a.type || '').toLowerCase()}">
+                    <div class="alert-timestamp">${fmtDate(a.timestamp)}</div>
+                    <div class="alert-message">${a.message || ''}</div>
+                </div>`).join('');
         }
 
+        /* ---------- history ---------- */
         async function fetchHistory() {
             try {
-                console.log('Fetching history from', `${API_BASE}/history`);
-                const response = await fetch(`${API_BASE}/history`);
-                console.log('History response status:', response.status);
-                const history = await response.json();
-                console.log('History data:', history);
-                renderHistory(history);
-            } catch (error) {
-                console.error('Error fetching history:', error);
+                const res = await fetch(`${API_BASE}/history`);
+                historyCache = await res.json();
+                setConnection(true);
+                renderHistory();
+                stamp();
+            } catch (e) {
+                console.error('history error', e);
+                setConnection(false);
             }
         }
+        function renderHistory() {
+            const body = document.getElementById('history-body');
+            const empty = document.getElementById('history-empty');
+            const table = document.getElementById('history-table');
+            const q = (document.getElementById('history-search').value || '').toLowerCase();
+            const items = (historyCache || []).filter(i => !q || (i.instrument || '').toLowerCase().includes(q));
 
-        function renderHistory(history) {
-            const container = document.getElementById('history-container');
-            console.log('Rendering history:', history);
-            if (history.length === 0) {
-                container.innerHTML = '<div class="no-data">No history available</div>';
+            // KPI: realized pnl + win rate over full history (not just filtered)
+            let realized = 0, realizedCount = 0, wins = 0;
+            (historyCache || []).forEach(i => {
+                const pnl = computePnl(i);
+                if (pnl !== null) { realized += pnl; realizedCount++; if (pnl > 0) wins++; }
+            });
+            const rEl = document.getElementById('kpi-realized');
+            rEl.textContent = realizedCount ? fmtMoney(realized) : '₹—';
+            rEl.className = 'value ' + pnlClass(realizedCount ? realized : null);
+            document.getElementById('kpi-trades').textContent = (historyCache || []).length;
+            document.getElementById('kpi-winrate').textContent = realizedCount
+                ? `Win rate: ${((wins / realizedCount) * 100).toFixed(0)}% (${wins}/${realizedCount})`
+                : 'Win rate: —';
+
+            if (items.length === 0) {
+                body.innerHTML = '';
+                table.classList.add('hidden');
+                empty.classList.remove('hidden');
+                empty.textContent = q ? 'No matching history' : 'No history available';
                 return;
             }
-
-            container.innerHTML = history.map(item => `
-                <div class="history-item">
-                    <h3>${item.instrument} <span class="status-badge ${item.final_status.toLowerCase()}">${item.final_status}</span></h3>
-                    <p>Quantity: ${item.qty}</p>
-                    <p>Opened: ${new Date(item.opened_at + (item.opened_at.includes('+') || item.opened_at.endsWith('Z') ? '' : 'Z')).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
-                    <p>Closed: ${new Date(item.closed_at + (item.closed_at.includes('+') || item.closed_at.endsWith('Z') ? '' : 'Z')).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
-                </div>
-            `).join('');
+            table.classList.remove('hidden');
+            empty.classList.add('hidden');
+            body.innerHTML = items.map(i => {
+                const status = (i.final_status || i.status || '').toUpperCase();
+                const side = (i.side || 'BUY').toUpperCase();
+                const pnl = computePnl(i);
+                const exit = i.current_ltp ?? i.ltp ?? i.exit_price;
+                return `
+                    <tr>
+                        <td><div class="instrument-name">${i.instrument || '—'}</div><div class="instrument-sub">ID: ${i.exchange_instrument_id ?? '—'}</div></td>
+                        <td><span class="badge seg">${i.exchange_segment || '—'}</span></td>
+                        <td><span class="badge ${side.toLowerCase()}">${side}</span></td>
+                        <td class="num">${i.qty ?? '—'}</td>
+                        <td class="num">${fmtNum(i.entry_price)}</td>
+                        <td class="num">${fmtNum(exit)}</td>
+                        <td class="num ${pnlClass(pnl)}">${pnl === null ? '—' : fmtMoney(pnl)}</td>
+                        <td><span class="badge ${status.toLowerCase()}">${status || 'N/A'}</span></td>
+                        <td>${fmtDate(i.opened_at)}</td>
+                        <td>${fmtDate(i.closed_at)}</td>
+                    </tr>`;
+            }).join('');
         }
 
-        // Initial load
-        fetchPositions();
-        fetchAlerts();
-
-        // Auto refresh every 5 seconds
-        setInterval(() => {
+        /* ---------- refresh loop ---------- */
+        function refreshAll() {
             fetchPositions();
             fetchAlerts();
+            fetchHistory();
+        }
+
+        toggleLimitPrice();
+        refreshAll();
+        setInterval(() => {
+            if (!document.getElementById('autorefresh').checked) return;
+            fetchPositions();
+            fetchAlerts();
+            const histActive = document.getElementById('history-tab').classList.contains('active');
+            if (histActive) fetchHistory();
         }, 5000);
     </script>
 </body>

@@ -1095,6 +1095,7 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
                 log.warning("Signal processing timeout - order may be pending")
                 self.send_response(202)  # Accepted
                 self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
                 self.wfile.write(
                     json.dumps(
@@ -1108,6 +1109,7 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
                 log.exception("HTTP Handler error:")
                 self.send_response(500)
                 self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
                 self.wfile.write(
                     json.dumps({"status": "error", "message": str(e)}).encode("utf-8")

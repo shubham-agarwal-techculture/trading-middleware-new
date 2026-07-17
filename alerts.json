@@ -1,5 +1,19 @@
 [
     {
+        "id": "10af9ccec4e34a53a48ca8b20da01556",
+        "timestamp": "2026-07-17T17:50:16.042996+05:30",
+        "type": "SIGNAL",
+        "message": "Received BUY signal",
+        "data": {
+            "action": "BUY",
+            "position": "long",
+            "orderType": "LIMIT",
+            "productType": "MIS",
+            "quantity": 1,
+            "symbol": "GOLD260729C142000"
+        }
+    },
+    {
         "id": "452a9de14473439a8e2c22a41a1ad6df",
         "timestamp": "2026-07-17T17:39:58.352575+05:30",
         "type": "SIGNAL",
