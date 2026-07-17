@@ -1,6 +1,34 @@
 [
     {
         "side": "BUY",
+        "qty": 20,
+        "instrument": "SENSEX2672381100CE",
+        "exchange_instrument_id": 835491,
+        "exchange_segment": "BSEFO",
+        "opened_at": "2026-07-17T17:39:25.441177+05:30",
+        "signal_id": "4dd91533ca1246b6a0696eb22be077e9",
+        "oms_order_id": "bcaa6ae09f77482a8b",
+        "status": "REJECTED",
+        "entry_price": 10.75,
+        "final_status": "REJECTED",
+        "closed_at": "2026-07-17T17:39:41.460005+05:30"
+    },
+    {
+        "side": "BUY",
+        "qty": 20,
+        "instrument": "SENSEX2672381100CE",
+        "exchange_instrument_id": 835491,
+        "exchange_segment": "BSEFO",
+        "opened_at": "2026-07-17T17:31:10.860680+05:30",
+        "signal_id": "fd251498b7cd4a68ab0996080ce5457a",
+        "oms_order_id": "8d39129a6d8e4a7295",
+        "status": "REJECTED",
+        "entry_price": 10.75,
+        "final_status": "REJECTED",
+        "closed_at": "2026-07-17T17:31:28.594067+05:30"
+    },
+    {
+        "side": "BUY",
         "qty": 65,
         "instrument": "NIFTY2672125200CE",
         "exchange_instrument_id": 57404,

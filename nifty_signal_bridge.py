@@ -60,6 +60,9 @@ TV_SYMBOL_ALIASES = {
     "BKX": "BANKEX",
 }
 POSITIONS_FILE = Path("positions.json")
+HISTORY_FILE = Path("history.json")
+ALERTS_FILE = Path("alerts.json")
+MAX_ALERTS = 100
 
 # Setup logging
 logging.basicConfig(
@@ -75,7 +78,6 @@ client = None
 http_port = DEFAULT_PORT
 atm_data = None
 pending_orders = {}  # Track pending orders by signal_id
-alerts = []  # Track alerts/signals
 cleanup_stop_event = threading.Event()
 
 
@@ -194,9 +196,6 @@ async def enrich_positions_for_display(
     return positions
 
 
-HISTORY_FILE = Path("history.json")
-
-
 def load_history():
     """Load history from JSON file."""
     if not HISTORY_FILE.exists():
@@ -230,18 +229,41 @@ def append_to_history(position, status):
     save_history(history)
 
 
+def load_alerts():
+    """Load alerts from JSON file (persists across bridge restarts)."""
+    if not ALERTS_FILE.exists():
+        return []
+    try:
+        with open(ALERTS_FILE, "r") as f:
+            data = json.load(f)
+            return data if isinstance(data, list) else []
+    except Exception as e:
+        log.error("Error loading alerts: %s", e)
+        return []
+
+
+def save_alerts(alerts):
+    """Save alerts to JSON file."""
+    try:
+        with open(ALERTS_FILE, "w") as f:
+            json.dump(alerts, f, indent=4)
+    except Exception as e:
+        log.error("Error saving alerts: %s", e)
+
+
 def add_alert(alert_data):
-    """Add a new alert to the alerts list."""
-    global alerts
+    """Add a new alert and persist it to alerts.json."""
+    alerts = load_alerts()
     alert = {
         "id": uuid.uuid4().hex,
         "timestamp": get_ist_now(),
         **alert_data,
     }
-    alerts.insert(0, alert)  # Add to beginning for newest first
-    # Keep only last 100 alerts
-    if len(alerts) > 100:
-        alerts = alerts[:100]
+    alerts.insert(0, alert)  # Newest first
+    if len(alerts) > MAX_ALERTS:
+        alerts = alerts[:MAX_ALERTS]
+    save_alerts(alerts)
+    return alert
 
 
 def periodic_cleanup():
@@ -1146,8 +1168,9 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
                 )
 
         elif self.path == "/alerts":
-            # Endpoint to get alerts
+            # Endpoint to get alerts (loaded from disk so they survive restarts)
             try:
+                alerts = load_alerts()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Access-Control-Allow-Origin", "*")

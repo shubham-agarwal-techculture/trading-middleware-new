@@ -15,3 +15,15 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2026-07-17 14:04:03 | INFO     | [QUEUED]   oms_id=0e8b1b2f40664fc6bd | signal_id=47ae28c168e64060b519bed93e739b39 | NIFTY2672125200CE | side=BUY | qty=65 | type=LIMIT
 2026-07-17 14:04:03 | INFO     | [ACK]      oms_id=0e8b1b2f40664fc6bd | broker_id=1110035194 | NIFTY2672125200CE | side=BUY | qty=65
 2026-07-17 14:04:16 | WARNING  | [REJECTED]  oms_id=0e8b1b2f40664fc6bd | NIFTY2672125200CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [37.5] in form of Cash. TotalRequired Cash : 37.5, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-17 17:31:10 | INFO     | [QUEUED]   oms_id=8d39129a6d8e4a7295 | signal_id=fd251498b7cd4a68ab0996080ce5457a | SENSEX2672381100CE | side=BUY | qty=20 | type=LIMIT
+2026-07-17 17:31:10 | INFO     | [ACK]      oms_id=8d39129a6d8e4a7295 | broker_id=1110038424 | SENSEX2672381100CE | side=BUY | qty=20
+2026-07-17 17:31:28 | WARNING  | [REJECTED]  oms_id=8d39129a6d8e4a7295 | SENSEX2672381100CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [112.5] in form of Cash. TotalRequired Cash : 112.5, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-17 17:34:30 | INFO     | [QUEUED]   oms_id=adb4ac51c125407dbf | signal_id=78f4d29756e9414fbeb52c53822e79fa | GOLD29JUL2026142000CE | side=BUY | qty=1 | type=LIMIT
+2026-07-17 17:34:31 | ERROR    | [OMS_ERROR] oms_id=adb4ac51c125407dbf | code=BROKER_ERROR | Algo details not found for segment MCXFO
+2026-07-17 17:34:31 | ERROR    | [ERROR]    oms_id=adb4ac51c125407dbf | GOLD29JUL2026142000CE | BROKER_ERROR | Algo details not found for segment MCXFO
+2026-07-17 17:39:25 | INFO     | [QUEUED]   oms_id=bcaa6ae09f77482a8b | signal_id=4dd91533ca1246b6a0696eb22be077e9 | SENSEX2672381100CE | side=BUY | qty=20 | type=LIMIT
+2026-07-17 17:39:25 | INFO     | [ACK]      oms_id=bcaa6ae09f77482a8b | broker_id=1110038425 | SENSEX2672381100CE | side=BUY | qty=20
+2026-07-17 17:39:41 | WARNING  | [REJECTED]  oms_id=bcaa6ae09f77482a8b | SENSEX2672381100CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [112.5] in form of Cash. TotalRequired Cash : 112.5, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-17 17:39:58 | INFO     | [QUEUED]   oms_id=72df4cafa2a040b893 | signal_id=5b033349637b4bd89eda0e75ce2e8747 | GOLD29JUL2026142000CE | side=BUY | qty=1 | type=LIMIT
+2026-07-17 17:39:59 | ERROR    | [OMS_ERROR] oms_id=72df4cafa2a040b893 | code=BROKER_ERROR | Algo details not found for segment MCXFO
+2026-07-17 17:39:59 | ERROR    | [ERROR]    oms_id=72df4cafa2a040b893 | GOLD29JUL2026142000CE | BROKER_ERROR | Algo details not found for segment MCXFO

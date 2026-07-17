@@ -1,0 +1,34 @@
+[
+    {
+        "id": "452a9de14473439a8e2c22a41a1ad6df",
+        "timestamp": "2026-07-17T17:39:58.352575+05:30",
+        "type": "SIGNAL",
+        "message": "Received BUY signal",
+        "data": {
+            "action": "BUY",
+            "position": "long",
+            "quantity": 1,
+            "symbol": "GOLD260729C142000",
+            "orderType": "LIMIT",
+            "productType": "MIS",
+            "timestamp": 1784290194634,
+            "receivedAt": "2026-07-17T12:09:54.634Z"
+        }
+    },
+    {
+        "id": "38e855b9a17d4c95948d3c5fe33ef52b",
+        "timestamp": "2026-07-17T17:39:24.943471+05:30",
+        "type": "SIGNAL",
+        "message": "Received BUY signal",
+        "data": {
+            "action": "BUY",
+            "position": "long",
+            "quantity": 20,
+            "symbol": "BSX260723C81100",
+            "orderType": "LIMIT",
+            "productType": "MIS",
+            "timestamp": 1784290164939,
+            "receivedAt": "2026-07-17T12:09:24.939Z"
+        }
+    }
+]
