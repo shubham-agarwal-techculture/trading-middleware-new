@@ -48,8 +48,17 @@ STRATEGY_ID = "NIFTY_SIGNAL_BRIDGE"
 # OMS_SUB = "tcp://192.168.1.26:5556"
 OMS_PUSH = "tcp://127.0.0.1:5555"
 OMS_SUB = "tcp://127.0.0.1:5556"
-CSV_PATH = Path("master_data/NSEFO.csv")
+MASTER_DIR = Path("master_data")
+# Order matters: preferred segment when the same instrument exists on more than one exchange
+MASTER_SEGMENTS = ["NSEFO", "BSEFO", "MCXFO", "NSECM", "BSECM"]
+CSV_PATH = MASTER_DIR / "NSEFO.csv"  # kept for NIFTY ATM flow (nifty_atm_ltp)
 DEFAULT_PORT = 5002
+
+# TradingView option roots that differ from exchange master names
+TV_SYMBOL_ALIASES = {
+    "BSX": "SENSEX",
+    "BKX": "BANKEX",
+}
 POSITIONS_FILE = Path("positions.json")
 
 # Setup logging
@@ -422,28 +431,152 @@ def tv_to_xts_description(tv_ticker: str) -> Optional[str]:
 #     return f"{underlying}{expiry_part}{strike}{option_type}"
 
 
+# Cached master loaders, one per exchange segment (CSV parsing is expensive)
+_master_loaders: Dict[str, Optional[ContractLoader]] = {}
+
+
+def get_master_loader(segment: str) -> Optional[ContractLoader]:
+    """Return a cached ContractLoader for the given segment, or None if no CSV."""
+    seg = segment.strip().upper()
+    if seg not in _master_loaders:
+        path = MASTER_DIR / f"{seg}.csv"
+        if not path.exists():
+            log.warning("Master data file not found for segment %s: %s", seg, path)
+            _master_loaders[seg] = None
+        else:
+            _master_loaders[seg] = ContractLoader(path)
+    return _master_loaders[seg]
+
+
+def parse_tv_option_ticker(ticker: str) -> Optional[Dict[str, Any]]:
+    """
+    Parse a TradingView option ticker like NIFTY260625C27000 or BSX260723C81100
+    into its components. Returns None if it does not look like an option ticker.
+    """
+    match = re.match(
+        r"^([A-Z][A-Z0-9&\-]*?)(\d{6})([CP])(\d+(?:\.\d+)?)$",
+        ticker.strip().upper(),
+    )
+    if not match:
+        return None
+
+    try:
+        expiry = datetime.strptime(match.group(2), "%y%m%d").date()
+    except ValueError:
+        return None
+
+    name = match.group(1)
+    return {
+        "name": TV_SYMBOL_ALIASES.get(name, name),
+        "expiry": expiry,
+        "option_type_csv": "3" if match.group(3) == "C" else "4",
+        "strike": float(match.group(4)),
+    }
+
+
+def _segments_to_search(segment_hint: Optional[str]) -> list:
+    if segment_hint:
+        seg = segment_hint.strip().upper()
+        if seg:
+            return [seg]
+    return list(MASTER_SEGMENTS)
+
+
 async def resolve_contract_by_ticker(
     ticker: str,
+    segment_hint: Optional[str] = None,
 ) -> Optional[dict]:
+    """
+    Resolve a ticker/symbol to a master contract row, searching NSE, BSE and MCX.
 
+    Supports:
+      - TradingView option tickers (NIFTY260625C27000, BSX260723C81100, ...)
+        matched by underlying + expiry + strike + option type
+      - Exact Description match (NIFTY26JUN27000CE, SENSEX2672373400PE,
+        CRUDEOILM17AUG20265350CE, RELIANCE-EQ, ...)
+      - Plain equity symbols (RELIANCE) resolved from cash-market masters
+    """
     if not ticker:
         return None
 
-    loader = ContractLoader(CSV_PATH)
+    ticker = ticker.strip().upper()
+    segments = _segments_to_search(segment_hint)
 
-    xts_description = tv_to_xts_description(ticker)
+    parsed = parse_tv_option_ticker(ticker)
+    if parsed:
+        for seg in segments:
+            loader = get_master_loader(seg)
+            if not loader:
+                continue
+            for contract in loader.contracts:
+                if contract.get("Name", "").strip().upper() != parsed["name"]:
+                    continue
+                if contract.get("OptionType", "").strip() != parsed["option_type_csv"]:
+                    continue
+                try:
+                    if float(contract.get("StrikePrice") or 0) != parsed["strike"]:
+                        continue
+                    expiry_date = datetime.fromisoformat(
+                        contract["ContractExpiration"]
+                    ).date()
+                except (ValueError, KeyError, TypeError):
+                    continue
+                if expiry_date == parsed["expiry"]:
+                    return contract
 
-    if not xts_description:
+        # Legacy fallback: NSE-style description built from the TV ticker
+        xts_description = tv_to_xts_description(ticker)
+        if xts_description:
+            xts_description = xts_description.upper()
+            for seg in segments:
+                loader = get_master_loader(seg)
+                if not loader:
+                    continue
+                for contract in loader.contracts:
+                    if (
+                        contract.get("Description", "").strip().upper()
+                        == xts_description
+                    ):
+                        return contract
         return None
 
-    xts_description = xts_description.upper()
+    # Exact Description / NameWithSeries match across all segments
+    for seg in segments:
+        loader = get_master_loader(seg)
+        if not loader:
+            continue
+        for contract in loader.contracts:
+            if (
+                contract.get("Description", "").strip().upper() == ticker
+                or contract.get("NameWithSeries", "").strip().upper() == ticker
+            ):
+                return contract
 
+    # Plain equity symbol: match by Name in cash-market segments
+    for seg in segments:
+        if not seg.endswith("CM"):
+            continue
+        loader = get_master_loader(seg)
+        if not loader:
+            continue
+        for contract in loader.contracts:
+            if contract.get("Name", "").strip().upper() == ticker:
+                return contract
+
+    return None
+
+
+def find_contract_by_instrument_id(
+    segment: str, exchange_instrument_id: int
+) -> Optional[dict]:
+    """Look up a master contract row by exchange segment and instrument ID."""
+    loader = get_master_loader(segment)
+    if not loader:
+        return None
+    target = str(exchange_instrument_id)
     for contract in loader.contracts:
-        description = contract.get("Description", "").strip().upper()
-
-        if description == xts_description:
+        if contract.get("ExchangeInstrumentID", "").strip() == target:
             return contract
-
     return None
 
 
@@ -484,6 +617,7 @@ async def process_order_status(signal_id: str, contract: Dict[str, Any], quantit
                     "qty": quantity,
                     "instrument": contract["instrument_name"],
                     "exchange_instrument_id": contract["exchange_instrument_id"],
+                    "exchange_segment": contract.get("exchange_segment", "NSEFO"),
                     "opened_at": get_ist_now(),
                     "signal_id": signal_id,
                     "oms_order_id": ack.get("oms_order_id"),
@@ -528,6 +662,12 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
         quantity = signal.get("quantity")
         option_type = signal.get("optionType", "CE").upper()
         ticker = signal.get("ticker") or signal.get("symbol")
+        explicit_segment = signal.get("exchange_segment") or signal.get(
+            "exchangeSegment"
+        )
+        explicit_instrument_id = signal.get("exchange_instrument_id") or signal.get(
+            "exchangeInstrumentID"
+        )
 
         if not action or not position:
             return {
@@ -535,18 +675,91 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
                 "message": "Missing required fields: action, position",
             }
 
+        def _safe_int(value, default=0):
+            try:
+                return int(float(value))
+            except (TypeError, ValueError):
+                return default
+
+        def _contract_from_master(contract_data: Dict[str, Any]) -> Dict[str, Any]:
+            csv_opt = str(contract_data.get("OptionType", "")).strip()
+            opt = "CE" if csv_opt == "3" else "PE" if csv_opt == "4" else option_type
+            return {
+                "exchange_segment": contract_data["ExchangeSegment"],
+                "exchange_instrument_id": int(contract_data["ExchangeInstrumentID"]),
+                "instrument_name": contract_data["Description"],
+                "lot_size": max(_safe_int(contract_data.get("LotSize"), 1), 1),
+                "strike": _safe_int(contract_data.get("StrikePrice")),
+                "option_type": opt,
+            }
+
         contract_data = None
         limit_price = None
 
-        if ticker:
-            contract_data = await resolve_contract_by_ticker(ticker)
+        if explicit_segment and explicit_instrument_id:
+            # Manual/explicit signal: segment + instrument ID given directly
+            explicit_segment = str(explicit_segment).strip().upper()
+            explicit_instrument_id = int(explicit_instrument_id)
+
+            master_row = find_contract_by_instrument_id(
+                explicit_segment, explicit_instrument_id
+            )
+            if master_row:
+                contract = _contract_from_master(master_row)
+            else:
+                # Fall back to signal-supplied fields when the master lacks the row
+                contract = {
+                    "exchange_segment": explicit_segment,
+                    "exchange_instrument_id": explicit_instrument_id,
+                    "instrument_name": signal.get("instrument_name")
+                    or signal.get("instrumentName")
+                    or str(explicit_instrument_id),
+                    "lot_size": max(_safe_int(signal.get("lot_size"), 1), 1),
+                    "strike": 0,
+                    "option_type": option_type,
+                }
+
+            log.info(
+                "Explicit instrument signal: %s @ %s (id=%d)",
+                contract["instrument_name"],
+                contract["exchange_segment"],
+                contract["exchange_instrument_id"],
+            )
+
+            if signal.get("limitPrice") or signal.get("limit_price"):
+                limit_price = float(
+                    signal.get("limitPrice") or signal.get("limit_price")
+                )
+            else:
+                limit_price = await get_ltp_for_contract(
+                    {
+                        "ExchangeInstrumentID": contract["exchange_instrument_id"],
+                        "ExchangeSegment": contract["exchange_segment"],
+                    }
+                )
+                if limit_price is None:
+                    return {
+                        "status": "error",
+                        "message": (
+                            "Could not fetch LTP for instrument "
+                            f"{contract['exchange_instrument_id']} on {contract['exchange_segment']}"
+                        ),
+                    }
+        elif ticker:
+            contract_data = await resolve_contract_by_ticker(
+                ticker, segment_hint=explicit_segment
+            )
             if not contract_data:
                 return {
                     "status": "error",
                     "message": f"Contract not found for ticker: {ticker}",
                 }
 
-            log.info("Resolved ticker contract: %s", contract_data.get("Description"))
+            log.info(
+                "Resolved ticker contract: %s @ %s",
+                contract_data.get("Description"),
+                contract_data.get("ExchangeSegment"),
+            )
 
             fetched_ltp = await get_ltp_for_contract(contract_data)
             if fetched_ltp is None:
@@ -562,22 +775,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 limit_price = fetched_ltp
 
-            option_type = (
-                "CE"
-                if contract_data.get("OptionType") == "3"
-                else "PE"
-                if contract_data.get("OptionType") == "4"
-                else option_type
-            )
-
-            contract = {
-                "exchange_segment": contract_data["ExchangeSegment"],
-                "exchange_instrument_id": int(contract_data["ExchangeInstrumentID"]),
-                "instrument_name": contract_data["Description"],
-                "lot_size": int(contract_data["LotSize"]),
-                "strike": int(float(contract_data.get("StrikePrice", 0))),
-                "option_type": option_type,
-            }
+            contract = _contract_from_master(contract_data)
         else:
             # Get live ATM data
             if atm_data is None:

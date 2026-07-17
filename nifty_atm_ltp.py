@@ -34,6 +34,29 @@ XTS_REST_URL = "https://eztrade.wealthdiscovery.in/apimarketdata"  # Replace wit
 NIFTY_NAME = "NIFTY"
 STRIKE_INTERVAL = 50  # Nifty options typically have 50-point intervals
 
+# XTS numeric codes for exchange segments (used by the marketdata quotes API)
+SEGMENT_CODES = {
+    "NSECM": 1,
+    "NSEFO": 2,
+    "NSECDS": 3,
+    "NSECO": 4,
+    "BSECM": 11,
+    "BSEFO": 12,
+    "BSECDS": 13,
+    "NCDEX": 21,
+    "MCXFO": 51,
+}
+
+
+def segment_to_code(exchange_segment) -> int:
+    """Convert a segment name like 'BSEFO' (or a numeric code) to the XTS numeric code."""
+    if isinstance(exchange_segment, int):
+        return exchange_segment
+    seg = str(exchange_segment).strip().upper()
+    if seg.isdigit():
+        return int(seg)
+    return SEGMENT_CODES.get(seg, 2)
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
@@ -141,15 +164,9 @@ class XTSMarketDataClient:
             ]
 
             payload = {
-                # "instruments": [
-                #     {
-                #         "exchangeSegment": exchange_segment,
-                #         "exchangeInstrumentID": exchange_instrument_id,
-                #     }
-                # ],
                 "instruments": [
                     {
-                        "exchangeSegment": 2,
+                        "exchangeSegment": segment_to_code(exchange_segment),
                         "exchangeInstrumentID": exchange_instrument_id,
                     }
                 ],
