@@ -1,0 +1,10 @@
+{
+  "date": "2026-07-17",
+  "total_orders": 1,
+  "strategies": {
+    "NIFTY_SIGNAL_BRIDGE": {
+      "orders": 1,
+      "fills": 0
+    }
+  }
+}

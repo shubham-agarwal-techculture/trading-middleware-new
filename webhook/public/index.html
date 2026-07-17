@@ -99,6 +99,16 @@
             font-size: 14px;
             color: #6b7280;
         }
+        .position-metric {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+        }
+        .position-metric.pnl {
+            color: #166534;
+        }
         .squareoff-btn {
             background: #ef4444;
             color: white;
@@ -243,6 +253,13 @@
             if (tabName === 'history') fetchHistory();
         }
 
+        function formatMetricValue(value) {
+            if (value === null || value === undefined || Number.isNaN(Number(value))) {
+                return 'N/A';
+            }
+            return Number(value).toFixed(2);
+        }
+
         async function fetchPositions() {
             try {
                 console.log('Fetching positions from', `${API_BASE}/positions`);
@@ -258,7 +275,7 @@
 
         function renderPositions(positions) {
             const container = document.getElementById('positions-container');
-            const keys = Object.keys(positions);
+            const keys = Object.keys(positions || {});
             console.log('Rendering positions. Keys:', keys, 'Positions:', positions);
             if (keys.length === 0) {
                 container.innerHTML = '<div class="no-data">No open positions</div>';
@@ -270,11 +287,21 @@
                 const statusStr = pos.status ? ` | Status: <strong>${pos.status}</strong>` : '';
                 const isFilled = pos.status === 'FILLED' || pos.status === 'COMPLETE';
                 const squareOffBtn = isFilled ? `<button class="squareoff-btn" onclick="squareOff('${key}')">Square Off</button>` : '';
+                const displayValues = pos.display_values || {};
+                let metricHtml = '';
+
+                if (displayValues.kind === 'pnl') {
+                    metricHtml = `<div class="position-metric pnl">P/L: <strong>${formatMetricValue(displayValues.value)}</strong></div>`;
+                } else {
+                    metricHtml = `<div class="position-metric">LTP: <strong>${formatMetricValue(displayValues.ltp)}</strong> | Underlying: <strong>${formatMetricValue(displayValues.underlying)}</strong></div>`;
+                }
+
                 return `
                     <div class="position-item">
                         <div class="position-info">
                             <h3>${pos.instrument}</h3>
                             <p>Quantity: ${pos.qty} | Opened: ${new Date(pos.opened_at + (pos.opened_at.includes('+') || pos.opened_at.endsWith('Z') ? '' : 'Z')).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}${statusStr}</p>
+                            ${metricHtml}
                         </div>
                         ${squareOffBtn}
                     </div>

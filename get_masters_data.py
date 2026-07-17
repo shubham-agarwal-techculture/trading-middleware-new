@@ -1,41 +1,24 @@
-from xts_api_client.xts_connect import XTSConnect
-import pandas as pd
+from pathlib import Path
 
-# XTS credentials
+import pandas as pd
+from xts_api_client.xts_connect import XTSConnect
+
+# XTS credentials (market data API)
 API_KEY = "797186c437b71e16887889"
 API_SECRET = "Dnfl104#2l"
 SOURCE = "WEBAPI"
-
-# Exchage Segment
-# EXCHANGE_SEGMENT = "MCXFO"
-EXCHANGE_SEGMENT = "NSEFO"
-
-# Base URL from your broker
 BASE_URL = "https://eztrade.wealthdiscovery.in/apimarketdata"
 
-# Create XTS object
-xt = XTSConnect(API_KEY, API_SECRET, SOURCE, root=BASE_URL, disable_ssl=True)
+# All exchange segments supported by the OMS
+EXCHANGE_SEGMENTS = [
+    "NSECM",   # NSE Cash Market
+    "NSEFO",   # NSE Futures & Options
+    "BSECM",   # BSE Cash Market
+    "BSEFO",   # BSE Futures & Options
+    "MCXFO",   # MCX Futures
+]
 
-# Login for market data
-response = xt.marketdata_login()
-
-print("Login Response:")
-print(response)
-
-# Fetch master data
-# master = xt.get_master(exchangeSegmentList=["NSECM"])
-# master = xt.get_master(exchangeSegmentList=["NSEFO"])
-master = xt.get_master(exchangeSegmentList=[EXCHANGE_SEGMENT])
-
-
-# Save raw master data
-raw_data = master["result"]
-
-
-# =========================
-# Column Names for NSECM
-# =========================
-columns = [
+COLUMNS = [
     "ExchangeSegment",
     "ExchangeInstrumentID",
     "InstrumentType",
@@ -57,52 +40,57 @@ columns = [
     "OptionType",
 ]
 
-# =========================================
-# Column Names for MCXFO (if needed, you can adjust based on actual data)
-# =========================================
+OUTPUT_DIR = Path("master_data")
 
-# columns = [
-#     "ExchangeSegment",
-#     "ExchangeInstrumentId",
-#     "InstrumentType",
-#     "Name",
-#     "Description",
-#     "Series",
-#     "NameWithSeries",
-#     "InstrumentId",
-#     "PriceBandHigh",
-#     "PriceBandLow",
-#     "FreezeQty",
-#     "TickSize",
-#     "LotSize",
-#     "Multiplier",
-#     "UnderlyingInstrumentId",
-#     "UnderlyingIndexName",
-#     "ContractExpiration",
-#     "StrikePrice",
-#     "OptionType",
-# ]
 
-# =========================
-# Convert to DataFrame
-# =========================
-rows = []
+def parse_master_result(raw_data: str) -> pd.DataFrame:
+    rows = []
+    for line in raw_data.split("\n"):
+        if line.strip():
+            values = line.split("|")[:19]
+            # Pad short rows so DataFrame columns always align
+            if len(values) < len(COLUMNS):
+                values.extend([""] * (len(COLUMNS) - len(values)))
+            rows.append(values)
+    return pd.DataFrame(rows, columns=COLUMNS)
 
-print(raw_data[:500])  # Print the first 500 characters to understand the structure
 
-for line in raw_data.split("\n"):
-    if line.strip():
-        values = line.split("|")[:19]
-        rows.append(values)
+def fetch_and_save_segment(xt: XTSConnect, segment: str) -> None:
+    print(f"\nFetching master data for {segment}...")
+    master = xt.get_master(exchangeSegmentList=[segment])
 
-df = pd.DataFrame(rows, columns=columns)
+    if not isinstance(master, dict) or "result" not in master:
+        print(f"  FAILED {segment}: unexpected response -> {master}")
+        return
 
-# =========================
-# Save CSV
-# =========================
-df.to_csv(f"master_data\{EXCHANGE_SEGMENT}.csv", index=False)
+    raw_data = master["result"]
+    if not raw_data or not str(raw_data).strip():
+        print(f"  SKIPPED {segment}: empty result")
+        return
 
-print(df.head())
-# print("Saved as nsecm_master.csv")
+    df = parse_master_result(str(raw_data))
+    out_path = OUTPUT_DIR / f"{segment}.csv"
+    df.to_csv(out_path, index=False)
+    print(f"  Saved {len(df)} rows -> {out_path}")
+    print(df.head(2).to_string(index=False))
 
-print(f"Master data saved to {EXCHANGE_SEGMENT}.csv")
+
+def main() -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    xt = XTSConnect(API_KEY, API_SECRET, SOURCE, root=BASE_URL, disable_ssl=True)
+    response = xt.marketdata_login()
+    print("Login Response:")
+    print(response)
+
+    for segment in EXCHANGE_SEGMENTS:
+        try:
+            fetch_and_save_segment(xt, segment)
+        except Exception as exc:
+            print(f"  ERROR {segment}: {exc}")
+
+    print("\nDone. Master CSVs are in:", OUTPUT_DIR.resolve())
+
+
+if __name__ == "__main__":
+    main()

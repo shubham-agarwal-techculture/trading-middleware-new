@@ -1,0 +1,123 @@
+2026-07-17T08:27:33.582681Z [info     ] === Order Management System Starting === [oms_server] version=1.0.0
+2026-07-17T08:27:33.582681Z [info     ] Session log files              [oms_server] oms_log=logs\oms_20260717_135733.log session_datetime=20260717_135733 xts_log=logs\xts_20260717_135733.log
+2026-07-17T08:27:33.582681Z [info     ] Configuration loaded           [oms_server] config_path=config.yaml
+2026-07-17T08:27:33.583181Z [info     ] Positions loaded from disk     [oms.core.position_tracker] count=0
+2026-07-17T08:27:33.710732Z [debug    ] XTS API response               [oms.broker.xts_adapter] body='{"type":"success","code":"s-user-0001","description":"Valid User.","result":{"enums":{"socketEvent":["joined","error","warning","success","order","trade","logout","position","tradeConversion","marketStatusUpdate","exchangeAdapterState","gttOrder","gttOrderRejection"],"orderSide":["BUY","SELL"],"orderSource":["TWS","TWSAPI","Web","WebAPI","MobileAndroid","MobileAndroidAPI","MobileWindows","MobileWindowsAPI","MobileIOS","MobileIOSAPI","OEMS","Algo","FIX","DMA","EnterpriseWeb","EnterpriseMobile","E' status_code=200 url=https://eztrade.wealthdiscovery.in/interactive/user/session
+2026-07-17T08:27:33.711232Z [info     ] XTS login successful           [oms.broker.xts_adapter] is_investor_client=True user_id=WD1768
+2026-07-17T08:27:33.712732Z [info     ] XTS interactive socket thread started [oms.broker.xts_socket]
+2026-07-17T08:27:33.712732Z [info     ] XTS interactive socket feed started [oms_server]
+2026-07-17T08:27:33.712732Z [info     ] Starting OMS engine ...        [oms_server]
+2026-07-17T08:27:33.720231Z [info     ] Orders restored                [oms.core.order_manager] count=0
+2026-07-17T08:27:33.838342Z [info     ] OMS started                    [oms.core.order_manager] pub=tcp://0.0.0.0:5556 pull=tcp://0.0.0.0:5555 workers=3
+2026-07-17T08:27:33.838842Z [info     ] Signal receiver started        [oms.core.order_manager]
+2026-07-17T08:27:33.838842Z [info     ] Order sync loop started        [oms.core.order_manager] active_interval=2 idle_interval=30
+2026-07-17T08:27:33.838842Z [info     ] Order worker started           [oms.core.order_manager] worker_id=0
+2026-07-17T08:27:33.839862Z [info     ] Order worker started           [oms.core.order_manager] worker_id=1
+2026-07-17T08:27:33.839862Z [info     ] Order worker started           [oms.core.order_manager] worker_id=2
+2026-07-17T08:27:34.976360Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:27:37.988768Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:27:40.999176Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:27:44.009148Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:27:47.019844Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:27:50.030016Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:27:53.040908Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:27:56.050439Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:27:59.060577Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:02.071457Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:05.081459Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:08.092183Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:11.102575Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:14.110918Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:17.121584Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:20.130430Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:23.140117Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:26.150885Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:29.161723Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:29.810002Z [info     ] Signal received                [oms.core.order_manager] msg_type=PLACE_ORDER signal_id=7f54c74409c5432795aa411adace3ed3 strategy=NIFTY_SIGNAL_BRIDGE
+2026-07-17T08:28:29.811504Z [info     ] Order queued                   [oms.core.order_manager] instrument=NIFTY2672125150CE oms_order_id=0b7558a0ec204fdfa9 qty=65 side=BUY strategy=NIFTY_SIGNAL_BRIDGE
+2026-07-17T08:28:29.812008Z [info     ] Placing order                  [oms.broker.xts_adapter] exchange_segment=NSEFO instrument_id=57400 price=1.2 qty=65 side=BUY
+2026-07-17T08:28:29.861518Z [debug    ] XTS API response               [oms.broker.xts_adapter] body='{"type":"success","code":"s-orders-0001","description":"API Order Id sent","result":{"AppOrderID":1110035193,"ClientID":"WD1768","OrderUniqueIdentifier":"7082bfc82b5a4e008b"}}' status_code=200 url=https://eztrade.wealthdiscovery.in/interactive/orders
+2026-07-17T08:28:29.861518Z [info     ] Order placed                   [oms.broker.xts_adapter] broker_order_id=1110035193
+2026-07-17T08:28:29.863019Z [debug    ] Response published             [oms.core.order_manager] msg_type=ORDER_ACK oms_order_id=0b7558a0ec204fdfa9 status=PENDING strategy=NIFTY_SIGNAL_BRIDGE
+2026-07-17T08:28:29.863519Z [info     ] Order placed successfully      [oms.core.order_manager] broker_order_id=1110035193 instrument=NIFTY2672125150CE oms_order_id=0b7558a0ec204fdfa9 strategy=NIFTY_SIGNAL_BRIDGE worker=2
+2026-07-17T08:28:32.171606Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:33.854041Z [debug    ] XTS API response               [oms.broker.xts_adapter] body='{"type":"success","code":"s-orders-0001","description":"Success order book","result":[{"LoginID":"WD1768","ClientID":"WD1768","AppOrderID":1110035192,"OrderReferenceID":"","GeneratedBy":"ClientAPI","ExchangeOrderID":"","OrderCategoryType":"NORMAL","ExchangeSegment":"NSEFO","ExchangeInstrumentID":57350,"OrderSide":"BUY","OrderType":"Limit","ProductType":"MIS","TimeInForce":"DAY","OrderPrice":125.45,"OrderQuantity":65,"OrderStopPrice":0,"OrderStatus":"Rejected","OrderAverageTradedPrice":"","Leaves' status_code=200 url=https://eztrade.wealthdiscovery.in/interactive/orders
+2026-07-17T08:28:33.855541Z [debug    ] Response published             [oms.core.order_manager] msg_type=ORDER_REJECTED oms_order_id=0b7558a0ec204fdfa9 status=REJECTED strategy=NIFTY_SIGNAL_BRIDGE
+2026-07-17T08:28:33.855541Z [info     ] Order state changed            [oms.core.order_manager] avg_price=0.0 filled_qty=0 instrument=NIFTY2672125150CE new_status=REJECTED oms_order_id=0b7558a0ec204fdfa9 prev_status=PENDING strategy=NIFTY_SIGNAL_BRIDGE
+2026-07-17T08:28:33.856041Z [debug    ] Order book sync completed      [oms.core.order_manager] checked=2
+2026-07-17T08:28:35.181395Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:38.190521Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:41.196018Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:44.205731Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:47.214420Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:50.224182Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:53.235222Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:56.245414Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:28:59.256152Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:02.264719Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:05.273574Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:08.283897Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:11.293969Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:14.302685Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:17.311495Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:20.321443Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:23.323421Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:26.341267Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:29.343543Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:32.354175Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:35.364322Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:38.374526Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:41.383242Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:44.393681Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:47.404190Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:50.414747Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:53.425089Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:56.435276Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:29:59.445612Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:02.456054Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:05.466220Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:08.476471Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:11.487151Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:14.497172Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:17.507930Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:20.516314Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:23.526539Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:26.537108Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:29.547572Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:32.557713Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:35.568158Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:38.579947Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:41.591197Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:44.601751Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:47.611409Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:50.621482Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:53.632323Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:56.642266Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:30:59.653566Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:02.665017Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:05.675051Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:08.685652Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:11.695710Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:14.704689Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:17.714749Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:20.725088Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:23.734960Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:26.746183Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:29.756254Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:32.766398Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:35.776540Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:38.787400Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:41.795270Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:44.804938Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:47.814823Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:50.824439Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:53.835164Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:56.845184Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:31:59.854520Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:32:02.864451Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:32:05.874570Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:32:08.885163Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:32:11.895833Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:32:14.906110Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:32:17.916338Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T08:32:20.926576Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]

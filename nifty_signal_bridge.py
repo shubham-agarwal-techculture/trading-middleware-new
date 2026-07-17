@@ -25,8 +25,11 @@ from typing import Optional
 from calendar import monthcalendar
 
 IST = timezone(timedelta(hours=5, minutes=30))
+
+
 def get_ist_now():
     return datetime.now(IST).isoformat()
+
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -41,8 +44,10 @@ from nifty_atm_ltp import (
 
 # Configuration
 STRATEGY_ID = "NIFTY_SIGNAL_BRIDGE"
-OMS_PUSH = "tcp://192.168.1.26:5555"
-OMS_SUB = "tcp://192.168.1.26:5556"
+# OMS_PUSH = "tcp://192.168.1.26:5555"
+# OMS_SUB = "tcp://192.168.1.26:5556"
+OMS_PUSH = "tcp://127.0.0.1:5555"
+OMS_SUB = "tcp://127.0.0.1:5556"
 CSV_PATH = Path("master_data/NSEFO.csv")
 DEFAULT_PORT = 5002
 POSITIONS_FILE = Path("positions.json")
@@ -87,7 +92,101 @@ def save_positions(positions):
         log.error("Error saving positions: %s", e)
 
 
+def get_position_display_values(
+    position: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Return display values for a position based on its current status."""
+    if not position:
+        return {"kind": "market", "ltp": None, "underlying": None}
+
+    status = str(position.get("status", "")).upper()
+    if status in {"FILLED", "COMPLETE"}:
+        entry_price = (
+            position.get("entry_price")
+            or position.get("avg_price")
+            or position.get("fill_price")
+            or position.get("price")
+            or position.get("limit_price")
+        )
+        current_ltp = position.get("current_ltp") or position.get("ltp")
+        try:
+            qty = float(position.get("qty", 1) or 1)
+            entry_price = float(entry_price) if entry_price is not None else None
+            current_ltp = float(current_ltp) if current_ltp is not None else None
+        except (TypeError, ValueError):
+            entry_price = None
+            current_ltp = None
+
+        if entry_price is None or current_ltp is None:
+            return {
+                "kind": "pnl",
+                "value": None,
+                "entry_price": entry_price,
+                "current_ltp": current_ltp,
+            }
+
+        side = str(position.get("side", "")).upper()
+        if side == "SELL":
+            pnl_value = (entry_price - current_ltp) * qty
+        else:
+            pnl_value = (current_ltp - entry_price) * qty
+
+        return {
+            "kind": "pnl",
+            "value": pnl_value,
+            "entry_price": entry_price,
+            "current_ltp": current_ltp,
+        }
+
+    return {
+        "kind": "market",
+        "ltp": position.get("current_ltp") or position.get("ltp"),
+        "underlying": position.get("underlying_price")
+        or position.get("underlying_ltp")
+        or position.get("underlying"),
+    }
+
+
+async def hydrate_position_market_data(position: Dict[str, Any]) -> None:
+    """Populate live market values for a single position from the exchange."""
+    exchange_instrument_id = position.get("exchange_instrument_id")
+    if not exchange_instrument_id:
+        return
+
+    try:
+        contract_data = {
+            "ExchangeInstrumentID": int(exchange_instrument_id),
+            "ExchangeSegment": position.get("exchange_segment", "NSEFO"),
+        }
+        live_ltp = await get_ltp_for_contract(contract_data)
+        if live_ltp is not None:
+            position["current_ltp"] = live_ltp
+            position["underlying_price"] = position.get("underlying_price", live_ltp)
+            position["last_market_update_at"] = get_ist_now()
+    except Exception as exc:
+        log.warning(
+            "Could not hydrate live market data for %s: %s",
+            position.get("instrument"),
+            exc,
+        )
+
+
+async def enrich_positions_for_display(
+    positions: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Attach live market data and display values to each position entry."""
+    if positions is None:
+        positions = load_positions()
+
+    for position in positions.values():
+        await hydrate_position_market_data(position)
+        position["display_values"] = get_position_display_values(position)
+
+    return positions
+
+
 HISTORY_FILE = Path("history.json")
+
 
 def load_history():
     """Load history from JSON file."""
@@ -100,6 +199,7 @@ def load_history():
         log.error("Error loading history: %s", e)
         return []
 
+
 def save_history(history):
     """Save history to JSON file."""
     try:
@@ -107,6 +207,7 @@ def save_history(history):
             json.dump(history, f, indent=4)
     except Exception as e:
         log.error("Error saving history: %s", e)
+
 
 def append_to_history(position, status):
     """Append a completed/failed position to history.json"""
@@ -142,20 +243,24 @@ def periodic_cleanup():
             positions = load_positions()
             updated = False
             terminal_statuses = ["REJECTED", "CANCELLED", "EXPIRED", "ERROR"]
-            
+
             for key, pos in list(positions.items()):
                 status = pos.get("status", "").upper()
                 if status in terminal_statuses:
-                    log.info("Moving position %s to history (terminal status: %s)", pos.get("instrument"), status)
+                    log.info(
+                        "Moving position %s to history (terminal status: %s)",
+                        pos.get("instrument"),
+                        status,
+                    )
                     append_to_history(pos, status)
                     positions.pop(key, None)
                     updated = True
-            
+
             if updated:
                 save_positions(positions)
         except Exception as e:
             log.error("Error in periodic cleanup: %s", e)
-        
+
         # Wait for 5 seconds or until stop event is set
         cleanup_stop_event.wait(timeout=5.0)
 
@@ -366,7 +471,7 @@ async def process_order_status(signal_id: str, contract: Dict[str, Any], quantit
 
         # Wait for ORDER_ACK with status tracking
         ack = await client.wait_for_ack(signal_id, timeout=30.0)
-        
+
         if ack:
             status = ack.get("status", "").upper()
             log.info("Order ack received for %s: %s", signal_id, status)
@@ -383,6 +488,7 @@ async def process_order_status(signal_id: str, contract: Dict[str, Any], quantit
                     "signal_id": signal_id,
                     "oms_order_id": ack.get("oms_order_id"),
                     "status": status,
+                    "entry_price": pending_orders.get(signal_id, {}).get("limit_price"),
                 }
                 save_positions(positions)
                 log.info("Position saved for %s", contract["instrument_name"])
@@ -528,12 +634,17 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
         instrument_key = str(contract["exchange_instrument_id"])
         positions = load_positions()
         current_position = positions.get(instrument_key)
-        
+
         # Determine if the position is currently active
         is_valid_position = False
         if current_position:
             status = current_position.get("status", "")
-            is_valid_position = status not in ["REJECTED", "CANCELLED", "EXPIRED", "ERROR"]
+            is_valid_position = status not in [
+                "REJECTED",
+                "CANCELLED",
+                "EXPIRED",
+                "ERROR",
+            ]
 
         log.info(
             "Received signal: Action=%s, Position=%s, Qty=%d, Instrument=%s",
@@ -557,7 +668,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
             )
 
             sig_id = uuid.uuid4().hex
-            
+
             # Determine reverse side and quantity
             pos_side = current_position.get("side", "BUY")
             reverse_side = "SELL" if pos_side.upper() == "BUY" else "BUY"
@@ -619,7 +730,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
 
             log.info("Processing square-off for %s...", contract["instrument_name"])
             sig_id = uuid.uuid4().hex
-            
+
             # Determine reverse side and quantity
             pos_side = current_position.get("side", "BUY")
             reverse_side = "SELL" if pos_side.upper() == "BUY" else "BUY"
@@ -690,6 +801,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
                 "status": "pending",
                 "instrument": contract["instrument_name"],
                 "timestamp": get_ist_now(),
+                "limit_price": limit_price,
             }
 
             signal_id = await client.place_order(
@@ -819,7 +931,7 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
         elif self.path == "/positions":
             # Endpoint to check current positions
             try:
-                positions = load_positions()
+                positions = asyncio.run(enrich_positions_for_display(load_positions()))
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Access-Control-Allow-Origin", "*")
@@ -953,7 +1065,10 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(
                         json.dumps(
-                            {"status": "success", "message": "Square off order submitted"}
+                            {
+                                "status": "success",
+                                "message": "Square off order submitted",
+                            }
                         ).encode("utf-8")
                     )
                 else:
@@ -963,7 +1078,10 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(
                         json.dumps(
-                            {"status": "error", "message": "Failed to submit square off order"}
+                            {
+                                "status": "error",
+                                "message": "Failed to submit square off order",
+                            }
                         ).encode("utf-8")
                     )
             except Exception as e:
@@ -1068,7 +1186,7 @@ async def main():
         oms_id = resp.get("oms_order_id", "N/A")
         status = resp.get("status", "")
         signal_id = resp.get("signal_id", "")
-        
+
         if not status and msg_type.startswith("ORDER_"):
             status = msg_type.replace("ORDER_", "")
 
@@ -1095,31 +1213,38 @@ async def main():
             updated = False
             str_oms_id = str(oms_id) if oms_id != "N/A" else "N/A"
             str_signal_id = str(signal_id) if signal_id else ""
-            
+
             for key, pos in list(positions.items()):
                 pos_oms_id = str(pos.get("oms_order_id", ""))
                 pos_sig_id = str(pos.get("signal_id", ""))
                 pos_sq_sig_id = str(pos.get("squareoff_signal_id", ""))
-                
+
                 # Check if this update belongs to the original opening order
-                if (str_oms_id != "N/A" and pos_oms_id == str_oms_id) or \
-                   (str_signal_id and pos_sig_id == str_signal_id):
+                if (str_oms_id != "N/A" and pos_oms_id == str_oms_id) or (
+                    str_signal_id and pos_sig_id == str_signal_id
+                ):
                     # Only update if there is a valid status string
                     if status:
                         pos["status"] = status
                         updated = True
-                
+
                 # Check if this update belongs to the reverse square-off order
                 elif str_signal_id and pos_sq_sig_id == str_signal_id:
                     if status in ["FILLED", "COMPLETE"]:
                         append_to_history(pos, status)
                         positions.pop(key, None)
                         updated = True
-                        log.info("Position %s removed due to successful square-off fill.", pos.get("instrument"))
+                        log.info(
+                            "Position %s removed due to successful square-off fill.",
+                            pos.get("instrument"),
+                        )
                     elif status in ["REJECTED", "CANCELLED", "ERROR", "EXPIRED"]:
                         pos.pop("squareoff_signal_id", None)
                         updated = True
-                        log.warning("Square-off order failed/cancelled for %s. Unlinked squareoff_signal_id.", pos.get("instrument"))
+                        log.warning(
+                            "Square-off order failed/cancelled for %s. Unlinked squareoff_signal_id.",
+                            pos.get("instrument"),
+                        )
 
             if updated:
                 save_positions(positions)

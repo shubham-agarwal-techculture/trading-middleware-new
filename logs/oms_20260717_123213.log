@@ -1,0 +1,24 @@
+2026-07-17T07:02:13.463457Z [info     ] === Order Management System Starting === [oms_server] version=1.0.0
+2026-07-17T07:02:13.463952Z [info     ] Session log files              [oms_server] oms_log=logs\oms_20260717_123213.log session_datetime=20260717_123213 xts_log=logs\xts_20260717_123213.log
+2026-07-17T07:02:13.464449Z [info     ] Configuration loaded           [oms_server] config_path=config.yaml
+2026-07-17T07:02:13.464449Z [info     ] Positions loaded from disk     [oms.core.position_tracker] count=0
+2026-07-17T07:02:13.636529Z [debug    ] XTS API response               [oms.broker.xts_adapter] body='{"type":"success","code":"s-user-0001","description":"Valid User.","result":{"enums":{"socketEvent":["joined","error","warning","success","order","trade","logout","position","tradeConversion","marketStatusUpdate","exchangeAdapterState","gttOrder","gttOrderRejection"],"orderSide":["BUY","SELL"],"orderSource":["TWS","TWSAPI","Web","WebAPI","MobileAndroid","MobileAndroidAPI","MobileWindows","MobileWindowsAPI","MobileIOS","MobileIOSAPI","OEMS","Algo","FIX","DMA","EnterpriseWeb","EnterpriseMobile","E' status_code=200 url=https://eztrade.wealthdiscovery.in/interactive/user/session
+2026-07-17T07:02:13.638027Z [info     ] XTS login successful           [oms.broker.xts_adapter] is_investor_client=False user_id=DRMS06
+2026-07-17T07:02:13.639530Z [info     ] XTS interactive socket thread started [oms.broker.xts_socket]
+2026-07-17T07:02:13.639530Z [info     ] XTS interactive socket feed started [oms_server]
+2026-07-17T07:02:13.640027Z [info     ] Starting OMS engine ...        [oms_server]
+2026-07-17T07:02:13.640529Z [info     ] Orders restored                [oms.core.order_manager] count=0
+2026-07-17T07:02:13.748571Z [info     ] OMS started                    [oms.core.order_manager] pub=tcp://0.0.0.0:5556 pull=tcp://0.0.0.0:5555 workers=3
+2026-07-17T07:02:13.749072Z [info     ] Signal receiver started        [oms.core.order_manager]
+2026-07-17T07:02:13.749572Z [info     ] Order sync loop started        [oms.core.order_manager] active_interval=2 idle_interval=30
+2026-07-17T07:02:13.750076Z [info     ] Order worker started           [oms.core.order_manager] worker_id=0
+2026-07-17T07:02:13.750076Z [info     ] Order worker started           [oms.core.order_manager] worker_id=1
+2026-07-17T07:02:13.750076Z [info     ] Order worker started           [oms.core.order_manager] worker_id=2
+2026-07-17T07:02:14.988538Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T07:02:18.003364Z [debug    ] XTS socket session ended, reconnecting ... [oms.broker.xts_socket]
+2026-07-17T07:02:20.803294Z [info     ] Stopping OMS ...               [oms_server]
+2026-07-17T07:02:20.803795Z [info     ] XTS interactive socket stop requested [oms.broker.xts_socket]
+2026-07-17T07:02:20.804294Z [info     ] OMS shutdown initiated         [oms.core.order_manager]
+2026-07-17T07:02:20.805793Z [info     ] XTS adapter closed             [oms.broker.xts_adapter]
+2026-07-17T07:02:20.806794Z [info     ] OMS shutdown complete          [oms.core.order_manager]
+2026-07-17T07:02:20.807293Z [info     ] OMS stopped cleanly.           [oms_server]

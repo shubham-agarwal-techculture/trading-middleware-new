@@ -1,0 +1,17 @@
+2026-07-17 12:57:44 | INFO     | [QUEUED]   oms_id=366ace3fa8e44bb7b4 | signal_id=44095fff6a4e4ec4a623eedb21761ea4 | NIFTY2672124250CE | side=BUY | qty=65 | type=LIMIT
+2026-07-17 12:57:45 | ERROR    | [OMS_ERROR] oms_id=366ace3fa8e44bb7b4 | code=BROKER_ERROR | Client error '400 Bad Request' for url 'https://eztrade.wealthdiscovery.in/interactive/orders'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+2026-07-17 12:57:45 | ERROR    | [ERROR]    oms_id=366ace3fa8e44bb7b4 | NIFTY2672124250CE | BROKER_ERROR | Client error '400 Bad Request' for url 'https://eztrade.wealthdiscovery.in/interactive/orders'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+2026-07-17 13:11:29 | INFO     | [QUEUED]   oms_id=71dbbe9e914c4b2892 | signal_id=5a0fe2f1d3af4c97bcc73c4f0daf1e11 | NIFTY2672124250CE | side=BUY | qty=65 | type=LIMIT
+2026-07-17 13:11:29 | INFO     | [ACK]      oms_id=71dbbe9e914c4b2892 | broker_id=1110035192 | NIFTY2672124250CE | side=BUY | qty=65
+2026-07-17 13:11:51 | WARNING  | [REJECTED]  oms_id=71dbbe9e914c4b2892 | NIFTY2672124250CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [4082.12] in form of Cash. TotalRequired Cash : 4082.125, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-17 13:53:18 | INFO     | [QUEUED]   oms_id=40e44c5add7e42588f | signal_id=f158470d01bf4ef8bca58c0e10bac49c | NIFTY2672125150CE | side=BUY | qty=65 | type=LIMIT
+2026-07-17 13:53:19 | ERROR    | [OMS_ERROR] oms_id=40e44c5add7e42588f | code=BROKER_ERROR | Token/Authorization not found
+2026-07-17 13:53:19 | ERROR    | [ERROR]    oms_id=40e44c5add7e42588f | NIFTY2672125150CE | BROKER_ERROR | Token/Authorization not found
+2026-07-17 13:58:29 | INFO     | [QUEUED]   oms_id=0b7558a0ec204fdfa9 | signal_id=7f54c74409c5432795aa411adace3ed3 | NIFTY2672125150CE | side=BUY | qty=65 | type=LIMIT
+2026-07-17 13:58:29 | INFO     | [ACK]      oms_id=0b7558a0ec204fdfa9 | broker_id=1110035193 | NIFTY2672125150CE | side=BUY | qty=65
+2026-07-17 13:58:33 | WARNING  | [REJECTED]  oms_id=0b7558a0ec204fdfa9 | NIFTY2672125150CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [44] in form of Cash. TotalRequired Cash : 44, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-17 14:04:03 | INFO     | [QUEUED]   oms_id=0e8b1b2f40664fc6bd | signal_id=47ae28c168e64060b519bed93e739b39 | NIFTY2672125200CE | side=BUY | qty=65 | type=LIMIT
+2026-07-17 14:04:03 | INFO     | [ACK]      oms_id=0e8b1b2f40664fc6bd | broker_id=1110035194 | NIFTY2672125200CE | side=BUY | qty=65
+2026-07-17 14:04:16 | WARNING  | [REJECTED]  oms_id=0e8b1b2f40664fc6bd | NIFTY2672125200CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [37.5] in form of Cash. TotalRequired Cash : 37.5, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]

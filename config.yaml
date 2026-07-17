@@ -1,0 +1,43 @@
+oms:
+  # ZMQ socket addresses
+  pull_address: "tcp://0.0.0.0:5555"   # OMS listens for order signals here
+  pub_address: "tcp://0.0.0.0:5556"    # OMS publishes responses here
+
+  # Queue and concurrency
+  max_queue_size: 1000          # Max orders in internal processing queue
+  order_workers: 3              # Concurrent workers sending to broker
+  retry_attempts: 2             # Retry failed broker API calls
+  retry_delay_ms: 500           # Delay between retries (ms)
+
+  # Periodic sync of order book from broker (safety net for missed socket events)
+  order_sync_interval: 30       # Seconds between polls when no active orders
+  active_order_sync_interval: 2 # Faster poll while orders are open (backup to socket)
+  timezone: "Asia/Kolkata"      # Timestamps in strategy responses and CSV logs (IST)
+
+broker:
+  type: "xts"                           # Broker adapter to use
+  url: "https://eztrade.wealthdiscovery.in"          # XTS Interactive API base URL
+  app_key: "e18e3648d7a6d41dd17701"
+  secret_key: "Atut207$M1"
+  source: "WEBAPI"
+  # client_id: "*****"                         # Fill if using dealer/CTCL mode
+  client_id: "wd1768"
+  verify_ssl: false
+  socket_enabled: true          # XTS Socket.IO for instant fill/status updates
+  socket_reconnect: true
+
+storage:
+  data_dir: "./data"
+  orders_log_file: "orders_log_{date}.csv"   # Append-only order event log
+  orders_state_file: "orders_state.json"     # Current state of all active orders
+  trades_file: "trades_{date}.csv"           # Append-only fill/trade log
+  positions_file: "positions.json"           # Current open positions snapshot
+  statistics_file: "statistics_{date}.json"  # Daily statistics
+
+logging:
+  level: "INFO"
+  log_dir: "./logs"
+  log_file: "oms_{datetime}.log"   # New file each OMS start, e.g. oms_20260520_120729.log
+  xts_log_file: "xts_{datetime}.log"
+  rotation_size_mb: 50
+  backup_count: 7
