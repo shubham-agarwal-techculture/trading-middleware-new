@@ -2,7 +2,7 @@
 
 import asyncio
 
-from nifty_signal_bridge import (
+from bridge.resolution import (
     resolve_contract_by_ticker,
     find_contract_by_instrument_id,
     parse_tv_option_ticker,

@@ -17,11 +17,11 @@ oms:
 broker:
   type: "xts"                           # Broker adapter to use
   url: "https://eztrade.wealthdiscovery.in"          # XTS Interactive API base URL
-  app_key: "e18e3648d7a6d41dd17701"
-  secret_key: "Atut207$M1"
+  # Secrets are pulled from environment variables (.env); never hardcode them here.
+  app_key: "${XTS_APP_KEY}"
+  secret_key: "${XTS_SECRET_KEY}"
   source: "WEBAPI"
-  # client_id: "*****"                         # Fill if using dealer/CTCL mode
-  client_id: "wd1768"
+  client_id: "${XTS_CLIENT_ID}"         # Fill XTS_CLIENT_ID for dealer/CTCL mode
   verify_ssl: false
   socket_enabled: true          # XTS Socket.IO for instant fill/status updates
   socket_reconnect: true

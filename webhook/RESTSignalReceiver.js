@@ -2,17 +2,21 @@ const SignalSource = require('./SignalSource');
 const express = require('express');
 const EventEmitter = require('events');
 const fs = require('fs').promises;
-const path = require('path');
+const { normalizeSignal } = require('./normalizeSignal');
+
+/** Max retained signal log entries (newest kept). */
+const MAX_SIGNAL_LOG = 1000;
 
 class RESTSignalReceiver extends SignalSource {
+    /**
+     * @param {number} [port=5001]
+     * @param {string} [logFilePath='signals.json']
+     * @param {import('express').Express|null} [app=null]
+     */
     constructor(port = 5001, logFilePath = 'signals.json', app = null) {
         super();
         this.port = port;
-        if (app) {
-            this.app = app;
-        } else {
-            this.app = express();
-        }
+        this.app = app || express();
         this.app.use(express.json());
         this.events = new EventEmitter();
         this.logFilePath = logFilePath;
@@ -22,10 +26,8 @@ class RESTSignalReceiver extends SignalSource {
 
     async initializeLogFile() {
         try {
-            // Check if file exists, if not create it with empty array
             await fs.access(this.logFilePath);
-        } catch (error) {
-            // File doesn't exist, create it with empty array
+        } catch {
             await fs.writeFile(this.logFilePath, '[]', 'utf8');
             console.log(`Created new log file: ${this.logFilePath}`);
         }
@@ -33,101 +35,56 @@ class RESTSignalReceiver extends SignalSource {
 
     setupRoutes() {
         this.app.post('/signal', (req, res) => {
-
-            console.log(req.body)
-            
-            const { symbol, action, quantity, position } = req.body;
-
-            if (!position || !action || !quantity) {
-                console.warn('Invalid signal received:', req.body, req.query);
+            const result = normalizeSignal(req.body);
+            if (!result.ok) {
+                console.warn('Invalid signal received:', req.body);
                 return res.status(400).json({
-                    error: 'Missing required fields: action, quantity, position',
-                    received: { body: req.body, query: req.query }
+                    error: result.error,
+                    received: result.received,
                 });
             }
 
-            console.log(`Received signal: ${action} ${quantity} for ${symbol || 'NIFTY'} (Position: ${position || 'N/A'})`);
+            const signalData = result.signal;
+            console.log(
+                `Received signal: ${signalData.action} ${signalData.quantity} for ${signalData.symbol || 'NIFTY'} (Position: ${signalData.position})`
+            );
 
-            const { orderType, limitPrice, productType, instrumentType } = req.body;
-            
-            // Create the signal object
-            const signalData = {
-                ...req.body,
-                symbol: symbol,
-                action: action.toUpperCase(),
-                quantity: Number(quantity),
-                position: position,
-                orderType: (orderType || 'LIMIT').toUpperCase(),
-                limitPrice: limitPrice ? Number(limitPrice) : undefined,
-                productType: (productType || 'MIS').toUpperCase(),
-                instrumentType: instrumentType ? instrumentType.toUpperCase() : undefined,
-                timestamp: Date.now(),
-                receivedAt: new Date().toISOString()
-            };
-
-            // Emit the signal
             this.events.emit('signal', signalData);
-
-            // Log the signal asynchronously
             this.logSignal(signalData);
 
-            res.json({ status: 'Signal received', symbol, action, quantity, position });
+            res.json({
+                status: 'Signal received',
+                symbol: signalData.symbol,
+                action: signalData.action,
+                quantity: signalData.quantity,
+                position: signalData.position,
+            });
         });
     }
 
     async logSignal(signalData) {
         try {
-            // Read existing data
             let existingData = [];
             try {
                 const fileContent = await fs.readFile(this.logFilePath, 'utf8');
                 existingData = JSON.parse(fileContent);
-                // Ensure it's an array
-                if (!Array.isArray(existingData)) {
-                    existingData = [];
-                }
-            } catch (error) {
-                // If file doesn't exist or is invalid, start with empty array
+                if (!Array.isArray(existingData)) existingData = [];
+            } catch {
                 existingData = [];
             }
 
-            // Add new signal
             existingData.push(signalData);
-
-            // Write back to file
-            await fs.writeFile(this.logFilePath, JSON.stringify(existingData, null, 2), 'utf8');
-            
+            if (existingData.length > MAX_SIGNAL_LOG) {
+                existingData = existingData.slice(-MAX_SIGNAL_LOG);
+            }
+            await fs.writeFile(
+                this.logFilePath,
+                JSON.stringify(existingData, null, 2),
+                'utf8'
+            );
             console.log(`Signal logged to ${this.logFilePath}`);
         } catch (error) {
             console.error('Error logging signal to file:', error);
-        }
-    }
-
-    // Optional: Method to query logs
-    async getLogs(options = {}) {
-        try {
-            const fileContent = await fs.readFile(this.logFilePath, 'utf8');
-            let logs = JSON.parse(fileContent);
-            
-            // Filter by symbol if provided
-            if (options.symbol) {
-                logs = logs.filter(log => log.symbol === options.symbol);
-            }
-            
-            // Filter by action if provided
-            if (options.action) {
-                logs = logs.filter(log => log.action === options.action.toUpperCase());
-            }
-            
-            // Limit results
-            if (options.limit && options.limit > 0) {
-                logs = logs.slice(-options.limit);
-            }
-            
-            return logs;
-        } catch (error) {
-            console.error('Error reading logs:', error);
-            return [];
         }
     }
 

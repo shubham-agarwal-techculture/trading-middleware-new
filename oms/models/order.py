@@ -1,10 +1,17 @@
-"""Order data models and enumerations."""
+"""Order data models and enumerations.
+
+The string enums below (:class:`OrderStatus`, :class:`OrderSide`, ...) are the
+canonical vocabulary for order fields. The :class:`Order` dataclass stores those
+fields as their string *values* (so CSV/JSON serialization is stable and matches
+the broker wire format) and exposes typed ``*_enum`` accessors for callers that
+prefer working with the enum type.
+"""
 
 from __future__ import annotations
 
 import json
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional, Set
@@ -157,6 +164,59 @@ class Order:
         """Generate an 18-char order unique identifier (compatible with XTS)."""
         return uuid.uuid4().hex[:18]
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Order":
+        """Reconstruct an :class:`Order` from a persisted dict (inverse of to_dict)."""
+        tags = data.get("tags", {})
+        if isinstance(tags, str):
+            try:
+                tags = json.loads(tags)
+            except Exception:
+                tags = {}
+
+        def _dt(value: str) -> Optional[datetime]:
+            if not value:
+                return None
+            try:
+                return datetime.fromisoformat(value)
+            except Exception:
+                return None
+
+        return cls(
+            oms_order_id=data["oms_order_id"],
+            strategy_id=data["strategy_id"],
+            signal_id=data.get("signal_id", ""),
+            exchange_segment=data["exchange_segment"],
+            exchange_instrument_id=int(data["exchange_instrument_id"]),
+            instrument_name=data.get("instrument_name", ""),
+            product_type=data["product_type"],
+            order_type=data["order_type"],
+            order_side=data["order_side"],
+            time_in_force=data["time_in_force"],
+            order_quantity=int(data["order_quantity"]),
+            limit_price=float(data.get("limit_price", 0.0)),
+            stop_price=float(data.get("stop_price", 0.0)),
+            disclosed_quantity=int(data.get("disclosed_quantity", 0)),
+            status=OrderStatus(data.get("status", "ERROR")),
+            broker_order_id=data.get("broker_order_id", ""),
+            order_unique_identifier=data.get("order_unique_identifier", ""),
+            filled_quantity=int(data.get("filled_quantity", 0)),
+            pending_quantity=int(data.get("pending_quantity", 0)),
+            avg_fill_price=float(data.get("avg_fill_price", 0.0)),
+            last_fill_price=float(data.get("last_fill_price", 0.0)),
+            last_fill_quantity=int(data.get("last_fill_quantity", 0)),
+            created_at=_dt(data.get("created_at", "")),
+            updated_at=_dt(data.get("updated_at", "")),
+            sent_at=_dt(data.get("sent_at", "")),
+            filled_at=_dt(data.get("filled_at", "")),
+            exchange_transact_time=data.get("exchange_transact_time", ""),
+            last_update_time=data.get("last_update_time", ""),
+            reject_reason=data.get("reject_reason", ""),
+            cancel_reason=data.get("cancel_reason", ""),
+            error_message=data.get("error_message", ""),
+            tags=tags,
+        )
+
     @property
     def is_terminal(self) -> bool:
         st = OrderStatus(self.status) if isinstance(self.status, str) else self.status
@@ -166,6 +226,36 @@ class Order:
     def is_active(self) -> bool:
         st = OrderStatus(self.status) if isinstance(self.status, str) else self.status
         return st in ACTIVE_STATES
+
+    # --- Typed enum accessors (fields are stored as their string values) ---
+
+    @staticmethod
+    def _as_enum(enum_cls, value):
+        """Return *value* as a member of *enum_cls*, or None if it doesn't map."""
+        try:
+            return enum_cls(value)
+        except ValueError:
+            return None
+
+    @property
+    def side(self) -> Optional[OrderSide]:
+        return self._as_enum(OrderSide, self.order_side)
+
+    @property
+    def type(self) -> Optional[OrderType]:
+        return self._as_enum(OrderType, self.order_type)
+
+    @property
+    def product(self) -> Optional[ProductType]:
+        return self._as_enum(ProductType, self.product_type)
+
+    @property
+    def tif(self) -> Optional[TimeInForce]:
+        return self._as_enum(TimeInForce, self.time_in_force)
+
+    @property
+    def segment(self) -> Optional[ExchangeSegment]:
+        return self._as_enum(ExchangeSegment, self.exchange_segment)
 
     def to_dict(self) -> Dict[str, Any]:
         return {

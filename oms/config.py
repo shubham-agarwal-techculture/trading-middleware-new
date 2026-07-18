@@ -1,12 +1,21 @@
-"""OMS configuration — dataclasses and YAML loader."""
+"""OMS configuration — dataclasses and YAML loader.
+
+Values in the YAML file may reference environment variables with
+``${VAR}`` syntax; these are expanded at load time (after loading ``.env``)
+so secrets never have to be written into ``config.yaml``.
+"""
 
 from __future__ import annotations
 
+import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 import yaml
+
+from oms.utils.env import load_env
 
 
 @dataclass
@@ -32,7 +41,7 @@ class BrokerConfig:
     app_key: str = ""
     secret_key: str = ""
     source: str = "WEBAPI"
-    client_id: str = "wd1768"
+    client_id: str = ""
     verify_ssl: bool = True
     socket_enabled: bool = True
     socket_reconnect: bool = True
@@ -66,14 +75,34 @@ class AppConfig:
     logging: LogConfig = field(default_factory=LogConfig)
 
 
+_ENV_VAR_RE = re.compile(r"\$\{([^}]+)\}")
+
+
+def _expand_env(value: Any) -> Any:
+    """Recursively expand ``${VAR}`` references in strings using os.environ."""
+    if isinstance(value, str):
+        return _ENV_VAR_RE.sub(lambda m: os.environ.get(m.group(1), ""), value)
+    if isinstance(value, dict):
+        return {k: _expand_env(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_expand_env(v) for v in value]
+    return value
+
+
 def load_config(config_path: str = "config.yaml") -> AppConfig:
-    """Load configuration from a YAML file. Falls back to defaults if not found."""
+    """Load configuration from a YAML file. Falls back to defaults if not found.
+
+    Environment variables referenced as ``${VAR}`` in the YAML are expanded
+    after loading the local ``.env`` file.
+    """
+    load_env()
+
     path = Path(config_path)
     if not path.exists():
         return AppConfig()
 
     with open(path, encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
+        data = _expand_env(yaml.safe_load(f) or {})
 
     cfg = AppConfig()
     if "oms" in data:

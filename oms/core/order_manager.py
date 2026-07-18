@@ -47,11 +47,13 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 
-import zmq
-import zmq.asyncio
-
+from oms.core.broker_events import BrokerEventProcessor
+from oms.core.dispatcher import SignalDispatcher
+from oms.core.order_book_sync import OrderBookSync
+from oms.core.transport import ZmqTransport
+from oms.core.worker import OrderWorker
 from oms.models.order import Order, OrderStatus, TERMINAL_STATES, ACTIVE_STATES
 from oms.models.response import OrderResponse, ResponseType
 from oms.utils.logger import get_logger, get_strategy_logger
@@ -93,10 +95,19 @@ class OrderManager:
             maxsize=self._cfg.max_queue_size
         )
 
-        # ZMQ
-        self._zmq_ctx = zmq.asyncio.Context.instance()
-        self._pull_socket: Optional[zmq.asyncio.Socket] = None
-        self._pub_socket: Optional[zmq.asyncio.Socket] = None
+        # Transport (ZMQ PULL ingress + PUB egress)
+        self._transport = ZmqTransport(self._cfg.pull_address, self._cfg.pub_address)
+
+        # Command-pattern dispatcher: msg_type -> handler
+        self._dispatcher = SignalDispatcher(on_unknown=self._handle_unknown)
+        self._dispatcher.register("PLACE_ORDER", self._handle_place_order)
+        self._dispatcher.register("CANCEL_ORDER", self._handle_cancel_order)
+        self._dispatcher.register("MODIFY_ORDER", self._handle_modify_order)
+        self._dispatcher.register("SQUAREOFF", self._handle_squareoff)
+        self._dispatcher.register("CANCEL_ALL", self._handle_cancel_all)
+
+        # Broker-event fill inference (shared, side-effect-free)
+        self._event_processor = BrokerEventProcessor()
 
         # Statistics
         self._stats: Dict[str, Any] = {}
@@ -136,11 +147,7 @@ class OrderManager:
         await self._restore_state()
 
         # Bind ZMQ sockets
-        self._pull_socket = self._zmq_ctx.socket(zmq.PULL)
-        self._pull_socket.bind(self._cfg.pull_address)
-
-        self._pub_socket = self._zmq_ctx.socket(zmq.PUB)
-        self._pub_socket.bind(self._cfg.pub_address)
+        self._transport.bind()
 
         # Brief pause so subscribers can connect
         await asyncio.sleep(0.1)
@@ -153,14 +160,24 @@ class OrderManager:
             workers=self._cfg.order_workers,
         )
 
+        # Order-book reconciliation safety net (parser injected → broker-agnostic)
+        order_book_sync = OrderBookSync(
+            manager=self,
+            broker=self._broker,
+            event_parser=self._broker,
+            idle_interval=self._cfg.order_sync_interval,
+            active_interval=self._cfg.active_order_sync_interval,
+        )
+
         # Launch background tasks
         self._tasks = [
             asyncio.create_task(self._receive_loop(), name="oms-receive"),
-            asyncio.create_task(self._sync_loop(), name="oms-sync"),
+            asyncio.create_task(order_book_sync.run(), name="oms-sync"),
         ]
         for i in range(self._cfg.order_workers):
+            worker = OrderWorker(self, i)
             self._tasks.append(
-                asyncio.create_task(self._worker_loop(i), name=f"oms-worker-{i}")
+                asyncio.create_task(worker.run(), name=f"oms-worker-{i}")
             )
 
         await asyncio.gather(*self._tasks, return_exceptions=True)
@@ -173,10 +190,7 @@ class OrderManager:
             task.cancel()
         await asyncio.gather(*self._tasks, return_exceptions=True)
 
-        if self._pull_socket:
-            self._pull_socket.close(linger=0)
-        if self._pub_socket:
-            self._pub_socket.close(linger=0)
+        self._transport.close()
 
         await self._broker.close()
         await self._persist_state()
@@ -216,13 +230,9 @@ class OrderManager:
         log.info("Signal receiver started")
         while self._running:
             try:
-                # poll() does not consume the message, so it is safe to cancel
-                # on timeout.  Only call recv_string() when a message is ready.
-                events = await self._pull_socket.poll(timeout=1000)  # ms
-                if not events:
+                signal = await self._transport.recv_signal(timeout_ms=1000)
+                if signal is None:
                     continue
-                raw = await self._pull_socket.recv_string()
-                signal = json.loads(raw)
                 await self._dispatch_signal(signal)
             except asyncio.CancelledError:
                 break
@@ -232,36 +242,21 @@ class OrderManager:
                 log.error("Receive loop error", error=str(exc), exc_info=True)
 
     async def _dispatch_signal(self, signal: Dict[str, Any]) -> None:
+        """Route a signal through the command dispatcher."""
+        await self._dispatcher.dispatch(signal)
+
+    async def _handle_unknown(self, signal: Dict[str, Any]) -> None:
         msg_type = signal.get("msg_type", "")
         strategy_id = signal.get("strategy_id", "UNKNOWN")
         signal_id = signal.get("signal_id", "")
-
-        log.info(
-            "Signal received",
-            msg_type=msg_type,
-            strategy=strategy_id,
+        log.warning("Unknown msg_type", msg_type=msg_type, strategy=strategy_id)
+        await self._publish_error(
+            strategy_id=strategy_id,
             signal_id=signal_id,
+            oms_order_id="",
+            error_code="UNKNOWN_MSG_TYPE",
+            error_message=f"Unsupported msg_type: {msg_type}",
         )
-
-        if msg_type == "PLACE_ORDER":
-            await self._handle_place_order(signal)
-        elif msg_type == "CANCEL_ORDER":
-            await self._handle_cancel_order(signal)
-        elif msg_type == "MODIFY_ORDER":
-            await self._handle_modify_order(signal)
-        elif msg_type == "SQUAREOFF":
-            await self._handle_squareoff(signal)
-        elif msg_type == "CANCEL_ALL":
-            await self._handle_cancel_all(signal)
-        else:
-            log.warning("Unknown msg_type", msg_type=msg_type, strategy=strategy_id)
-            await self._publish_error(
-                strategy_id=strategy_id,
-                signal_id=signal_id,
-                oms_order_id="",
-                error_code="UNKNOWN_MSG_TYPE",
-                error_message=f"Unsupported msg_type: {msg_type}",
-            )
 
     # ------------------------------------------------------------------
     # Signal handlers
@@ -473,39 +468,8 @@ class OrderManager:
             )
 
     # ------------------------------------------------------------------
-    # Worker loop (processes order queue)
+    # Order execution (invoked by OrderWorker pool)
     # ------------------------------------------------------------------
-
-    async def _worker_loop(self, worker_id: int) -> None:
-        log.info("Order worker started", worker_id=worker_id)
-        while self._running:
-            try:
-                op, order = await asyncio.wait_for(
-                    self._order_queue.get(), timeout=1.0
-                )
-            except asyncio.TimeoutError:
-                continue
-            except asyncio.CancelledError:
-                break
-
-            try:
-                if op == "PLACE":
-                    await self._execute_place(order, worker_id)
-                elif op == "CANCEL":
-                    await self._execute_cancel(order, worker_id)
-                elif op == "MODIFY":
-                    await self._execute_modify(order, worker_id)
-            except Exception as exc:
-                log.error(
-                    "Worker unhandled error",
-                    worker_id=worker_id,
-                    op=op,
-                    oms_order_id=order.oms_order_id,
-                    error=str(exc),
-                    exc_info=True,
-                )
-            finally:
-                self._order_queue.task_done()
 
     async def _execute_place(self, order: Order, worker_id: int) -> None:
         attempt = 0
@@ -847,45 +811,22 @@ class OrderManager:
         if not order or order.is_terminal:
             return
 
-        new_status = OrderStatus(parsed_event["oms_status"])
         prev_status = order.status
-        new_filled = int(parsed_event.get("filled_quantity", order.filled_quantity))
-        new_pending = int(parsed_event.get("pending_quantity", order.pending_quantity))
-        new_avg = float(parsed_event.get("avg_fill_price", order.avg_fill_price))
-        new_last_price = float(parsed_event.get("last_fill_price", order.last_fill_price))
-        last_qty = int(parsed_event.get("last_fill_quantity", 0))
 
-        has_new_fill_data = (
-            new_filled > order.filled_quantity
-            or (new_avg > 0 and order.avg_fill_price <= 0)
-            or (new_last_price > 0 and order.last_fill_price <= 0)
-        )
-        if (
-            new_status == prev_status
-            and new_filled == order.filled_quantity
-            and new_pending == order.pending_quantity
-            and abs(new_avg - order.avg_fill_price) < 1e-9
-            and not has_new_fill_data
-        ):
+        # Compute the concrete fill update (fill inference lives in one place).
+        update = self._event_processor.compute(order, parsed_event)
+        if update is None:
             return
 
-        # Infer missing fill qty/price (common in order-book poll before fields populate)
-        order_qty = int(parsed_event.get("order_quantity") or order.order_quantity or 0)
-        if new_status == OrderStatus.FILLED and new_filled <= 0 and order_qty > 0 and new_pending <= 0:
-            new_filled = order_qty
-        if new_avg <= 0 and new_last_price > 0:
-            new_avg = new_last_price
-        elif new_avg <= 0 and float(parsed_event.get("order_price", 0)) > 0 and new_filled > 0:
-            new_avg = float(parsed_event["order_price"])
-        elif new_avg <= 0 and order.limit_price > 0 and new_filled > 0:
-            new_avg = order.limit_price
-        if last_qty == 0 and new_filled > order.filled_quantity:
-            last_qty = new_filled - order.filled_quantity
-        if last_qty > 0 and new_last_price <= 0:
-            new_last_price = new_avg
+        new_status = update.new_status
+        new_filled = update.filled_quantity
+        new_pending = update.pending_quantity
+        new_avg = update.avg_fill_price
+        new_last_price = update.last_fill_price
+        last_qty = update.last_fill_quantity
 
-        exchange_ts = str(parsed_event.get("exchange_transact_time", "") or "")
-        last_upd = str(parsed_event.get("last_update_time", "") or "")
+        exchange_ts = update.exchange_transact_time
+        last_upd = update.last_update_time
         if exchange_ts:
             order.exchange_transact_time = exchange_ts
         if last_upd:
@@ -1085,69 +1026,12 @@ class OrderManager:
         )
 
     # ------------------------------------------------------------------
-    # Periodic order book sync (safety net for missed socket events)
-    # ------------------------------------------------------------------
-
-    async def _sync_loop(self) -> None:
-        log.info(
-            "Order sync loop started",
-            idle_interval=self._cfg.order_sync_interval,
-            active_interval=self._cfg.active_order_sync_interval,
-        )
-        while self._running:
-            try:
-                has_active = any(o.is_active for o in self._orders.values())
-                interval = (
-                    self._cfg.active_order_sync_interval
-                    if has_active
-                    else self._cfg.order_sync_interval
-                )
-                await asyncio.sleep(interval)
-                await self._sync_order_book()
-            except asyncio.CancelledError:
-                break
-            except Exception as exc:
-                log.warning("Order sync error", error=str(exc))
-
-    async def _sync_order_book(self) -> None:
-        """Pull order book from broker and reconcile any missed state changes."""
-        if not any(o.is_active for o in self._orders.values()):
-            return
-
-        try:
-            data = await self._broker.get_order_book()
-            broker_orders = data.get("result", []) or []
-            if not isinstance(broker_orders, list):
-                broker_orders = [broker_orders]
-
-            for broker_order in broker_orders:
-                uid = str(broker_order.get("OrderUniqueIdentifier", ""))
-                oms_id = self._uid_index.get(uid)
-                if not oms_id:
-                    continue
-                order = self._orders.get(oms_id)
-                if not order or order.is_terminal:
-                    continue
-
-                from oms.broker.xts_adapter import XTSBrokerAdapter
-                parsed = XTSBrokerAdapter.parse_order_event({"Appended": broker_order})
-                if parsed:
-                    await self.inject_broker_event(parsed)
-
-            log.debug("Order book sync completed", checked=len(broker_orders))
-        except Exception as exc:
-            log.warning("Failed to sync order book", error=str(exc))
-
-    # ------------------------------------------------------------------
     # ZMQ publish
     # ------------------------------------------------------------------
 
     async def _publish_response(self, resp: OrderResponse) -> None:
-        topic = resp.strategy_id
-        payload = json.dumps(resp.to_dict())
-        msg = f"{topic} {payload}"
         try:
-            await self._pub_socket.send_string(msg)
+            await self._transport.publish(resp.strategy_id, resp.to_dict())
             log.debug(
                 "Response published",
                 strategy=resp.strategy_id,
@@ -1231,56 +1115,8 @@ class OrderManager:
 
     @staticmethod
     def _dict_to_order(data: Dict[str, Any]) -> Order:
-        """Reconstruct an Order from a saved dict."""
-        tags = data.get("tags", {})
-        if isinstance(tags, str):
-            try:
-                tags = json.loads(tags)
-            except Exception:
-                tags = {}
-
-        def parse_dt(s: str) -> Optional[datetime]:
-            if not s:
-                return None
-            try:
-                return datetime.fromisoformat(s)
-            except Exception:
-                return None
-
-        return Order(
-            oms_order_id=data["oms_order_id"],
-            strategy_id=data["strategy_id"],
-            signal_id=data.get("signal_id", ""),
-            exchange_segment=data["exchange_segment"],
-            exchange_instrument_id=int(data["exchange_instrument_id"]),
-            instrument_name=data.get("instrument_name", ""),
-            product_type=data["product_type"],
-            order_type=data["order_type"],
-            order_side=data["order_side"],
-            time_in_force=data["time_in_force"],
-            order_quantity=int(data["order_quantity"]),
-            limit_price=float(data.get("limit_price", 0.0)),
-            stop_price=float(data.get("stop_price", 0.0)),
-            disclosed_quantity=int(data.get("disclosed_quantity", 0)),
-            status=OrderStatus(data.get("status", "ERROR")),
-            broker_order_id=data.get("broker_order_id", ""),
-            order_unique_identifier=data.get("order_unique_identifier", ""),
-            filled_quantity=int(data.get("filled_quantity", 0)),
-            pending_quantity=int(data.get("pending_quantity", 0)),
-            avg_fill_price=float(data.get("avg_fill_price", 0.0)),
-            last_fill_price=float(data.get("last_fill_price", 0.0)),
-            last_fill_quantity=int(data.get("last_fill_quantity", 0)),
-            created_at=parse_dt(data.get("created_at", "")),
-            updated_at=parse_dt(data.get("updated_at", "")),
-            sent_at=parse_dt(data.get("sent_at", "")),
-            filled_at=parse_dt(data.get("filled_at", "")),
-            exchange_transact_time=data.get("exchange_transact_time", ""),
-            last_update_time=data.get("last_update_time", ""),
-            reject_reason=data.get("reject_reason", ""),
-            cancel_reason=data.get("cancel_reason", ""),
-            error_message=data.get("error_message", ""),
-            tags=tags,
-        )
+        """Reconstruct an Order from a saved dict (delegates to Order.from_dict)."""
+        return Order.from_dict(data)
 
     def get_order(self, oms_order_id: str) -> Optional[Order]:
         return self._orders.get(oms_order_id)

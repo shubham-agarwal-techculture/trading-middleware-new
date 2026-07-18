@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Union
+
+from oms.models.order import OrderStatus
 
 
 class ResponseType(str, Enum):
@@ -28,14 +29,14 @@ class ResponseType(str, Enum):
 class OrderResponse:
     """Structured response published back to the originating strategy."""
 
-    # Routing
-    msg_type: str
+    # Routing (msg_type is a ResponseType; stored value may be the enum or str)
+    msg_type: Union[ResponseType, str]
     strategy_id: str
     oms_order_id: str
     signal_id: str
 
-    # Status
-    status: str
+    # Status (an OrderStatus value or its string form)
+    status: Union[OrderStatus, str]
 
     # Instrument
     exchange_segment: str = ""
@@ -74,13 +75,18 @@ class OrderResponse:
     # Optional strategy metadata echoed back
     tags: Dict[str, Any] = field(default_factory=dict)
 
+    @staticmethod
+    def _val(value: Any) -> Any:
+        """Serialize enum members to their string value; pass through otherwise."""
+        return value.value if isinstance(value, Enum) else value
+
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "msg_type": self.msg_type,
+            "msg_type": self._val(self.msg_type),
             "strategy_id": self.strategy_id,
             "oms_order_id": self.oms_order_id,
             "signal_id": self.signal_id,
-            "status": self.status,
+            "status": self._val(self.status),
             "exchange_segment": self.exchange_segment,
             "exchange_instrument_id": self.exchange_instrument_id,
             "instrument_name": self.instrument_name,

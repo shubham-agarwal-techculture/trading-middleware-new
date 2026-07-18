@@ -17,29 +17,13 @@ from typing import Any, Dict, Optional
 import httpx
 
 from oms.broker.base import AbstractBrokerAdapter, BrokerError
+from oms.models.order import XTS_STATUS_MAP
 from oms.utils.logger import get_logger
 from oms.utils.rate_limiter import RateLimiter
 from oms.utils.timeutil import parse_xts_datetime
 
 log = get_logger(__name__)
 xts_log = logging.getLogger("xts")
-
-
-# ---------------------------------------------------------------------------
-# XTS order status → OMS status string mapping
-# ---------------------------------------------------------------------------
-XTS_STATUS_MAP: Dict[str, str] = {
-    "New": "OPEN",
-    "PendingNew": "PENDING",
-    "PartiallyFilled": "PARTIAL_FILL",
-    "Filled": "FILLED",
-    "Cancelled": "CANCELLED",
-    "Rejected": "REJECTED",
-    "Expired": "EXPIRED",
-    "PendingCancel": "OPEN",
-    "PendingReplace": "OPEN",
-    "Replaced": "OPEN",
-}
 
 
 def _parse_numeric(val: Any) -> Optional[float]:
@@ -501,7 +485,10 @@ class XTSBrokerAdapter(AbstractBrokerAdapter):
             xts_status = str(
                 appended.get("OrderStatus") or appended.get("orderStatus") or ""
             )
-            oms_status = XTS_STATUS_MAP.get(xts_status, "")
+            # XTS_STATUS_MAP is the canonical mapping in oms.models.order and
+            # maps to OrderStatus enum members; parse output uses the string value.
+            status_enum = XTS_STATUS_MAP.get(xts_status)
+            oms_status = status_enum.value if status_enum else ""
             if not oms_status:
                 return None
 
