@@ -1,6 +1,6 @@
 # Webhook & Dashboard
 
-Entry point: `node webhook/server.js` (shim: `index.js`).
+Entry point: `node webhook/server.js`.
 
 ## Layout
 

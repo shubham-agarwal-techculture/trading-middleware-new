@@ -47,8 +47,7 @@ isProject: false
 # Trading Middleware Refactor
 
 ## Guiding constraints
-- **Behavior must not change.** Same HTTP endpoints, same ZMQ message contract, same JSON file schemas (`positions.json`, `history.json`, `alerts.json`, `data/*`).
-- **Entry-point files are renamed** for clarity (the one intentional user-facing change); launch commands change accordingly and README/docs are updated to match. No runtime behavior changes.
+- **Behavior must not change.** Same CLI entry points (`python oms_server.py`, `python nifty_signal_bridge.py`, `cd webhook && npm start`), same HTTP endpoints, same ZMQ message contract, same JSON file schemas (`positions.json`, `history.json`, `alerts.json`, `data/*`).
 - **Safety-net-first.** Add characterization tests before touching logic; run them after every phase.
 - Do not commit unless asked. Refactor in place on the current branch.
 
@@ -76,18 +75,6 @@ flowchart TD
   fwd -->|POST :5002| http
   omsc -->|ZMQ 5555/5556| tr
 ```
-
-## File & module renaming map
-Rename files to reflect what they actually do, then update every import, `__init__.py`, entry point, README, and `webhook`/`package.json`/`script.bat` reference. Renames happen at the end of the phase that touches each file (so imports move once), verified by `pytest` + smoke test.
-
-- `nifty_signal_bridge.py` → `run_bridge.py` (thin launcher) + new `bridge/` package (`resolution.py`, `positions.py`, `market_data.py`, `signal_service.py`, `http_server.py`). Name drops the misleading "nifty" (it now handles multi-exchange tickers).
-- `oms_server.py` → `run_oms.py` (clearer launcher naming, parallel to `run_bridge.py`).
-- `strategy_client.py` → `clients/oms_client.py` (module holding the `OMSClient` class).
-- `nifty_atm_ltp.py` → `market_data/` package: `market_data/xts_client.py` (`XTSMarketDataClient`), `market_data/contracts.py` (`ContractLoader`, segment codes), `market_data/atm.py` (`get_atm_data`).
-- `get_masters_data.py` → `market_data/download_masters.py` (one-shot master-file downloader).
-- `test_multi_exchange_resolution.py` → `scripts/resolve_contracts_demo.py` (it is a print-only demo, not a test).
-- Webhook (JS): keep PascalCase class files (`RESTSignalReceiver.js`, `SignalSource.js`), rename `index.js` → `server.js` (it is the process entry, not a module index), and split `public/index.html` into `index.html` + `public/app.js` + `public/styles.css`.
-- Config/support: `script.bat` updated to call the renamed launchers.
 
 ## Phase 0 — Safety net, secrets, dead-code hygiene
 - Add characterization tests (pytest) that pin current behavior of pure/high-value logic BEFORE refactoring:

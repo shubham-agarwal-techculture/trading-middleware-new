@@ -51,9 +51,7 @@ flowchart LR
 | Bridge | `python run_bridge.py` |
 | Webhook | `node webhook/server.js` |
 | Master CSVs | `python -m market_data.download_masters` |
-| ATM smoke | `python -m market_data.atm` (or `nifty_atm_ltp.py` shim) |
-
-Compatibility shims remain for old names (`oms_server.py`, `nifty_signal_bridge.py`, `strategy_client.py`, …).
+| ATM smoke | `python -m market_data.atm` |
 
 ## Tests
 

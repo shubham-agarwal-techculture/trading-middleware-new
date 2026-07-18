@@ -1,6 +1,6 @@
 # Signal Bridge
 
-Entry point: `python run_bridge.py --port 5002` (shim: `nifty_signal_bridge.py`).
+Entry point: `python run_bridge.py --port 5002`.
 
 ## Package layout
 

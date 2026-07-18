@@ -1,6 +1,6 @@
 # OMS Package
 
-Entry point: `python run_oms.py` (shim: `oms_server.py`).
+Entry point: `python run_oms.py`.
 
 ## Layout
 
