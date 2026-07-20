@@ -5,8 +5,9 @@ Auth headers (from eXchange1 OpenAPI docs):
   X-CH-APIKEY, X-CH-TS, X-CH-SIGN
   SIGN = HMAC_SHA256(secret, timestamp + METHOD + requestPath + body)
 
-Place:  POST /sapi/v2/order
-Cancel: POST /sapi/v2/cancel
+Place:  POST /sapi/v1/order
+Cancel: POST /sapi/v1/cancel
+Open:   GET  /sapi/v1/openOrders
 """
 
 from __future__ import annotations
@@ -30,15 +31,9 @@ DEFAULT_BASE_URL = "https://openapi.exchange1.com"
 
 
 def _normalize_symbol(symbol: str) -> str:
+    """Exchange1 API symbol: compact uppercase, e.g. ``BTCUSDT`` (not ``BTC/USDT``)."""
     s = str(symbol or "").strip().upper().replace(" ", "")
-    s = s.replace("_", "/").replace("-", "/")
-    if "/" in s:
-        base, quote = s.split("/", 1)
-        return f"{base}/{quote}"
-    for quote in ("USDT", "USDC", "BUSD", "USD", "BTC", "ETH", "BNB", "EUR", "INR"):
-        if s.endswith(quote) and len(s) > len(quote):
-            return f"{s[: -len(quote)]}/{quote}"
-    return s
+    return s.replace("_", "").replace("-", "").replace("/", "")
 
 
 class Exchange1BrokerAdapter(AbstractBrokerAdapter):
@@ -163,24 +158,39 @@ class Exchange1BrokerAdapter(AbstractBrokerAdapter):
                 "Exchange1 API key/secret not configured "
                 "(crypto_broker.app_key / secret_key)"
             )
-        # Spot ping (public) — validates connectivity; auth is per-request.
         client = await self._get_client()
-        try:
-            ping_url = f"{self._base_url}/sapi/v1/ping"
-            ex1_log.info("REST request | GET /sapi/v1/ping | connectivity check")
-            resp = await client.get(ping_url)
-            ex1_log.info(
-                "REST response | GET /sapi/v1/ping | status=%s | body=%s",
-                resp.status_code,
-                (resp.text or "")[:2000],
-            )
-            self._logged_in = resp.status_code < 500
-        except Exception as exc:
-            ex1_log.error("Connectivity check failed | error=%s", exc)
-            raise BrokerError(f"Exchange1 connectivity check failed: {exc}") from exc
-        log.info("Exchange1 adapter ready", base_url=self._base_url)
-        ex1_log.info("Adapter ready | base_url=%s", self._base_url)
-        return {"ok": True, "base_url": self._base_url}
+        last_status = 0
+        last_body = ""
+        for path in ("/sapi/v1/ping", "/sapi/v1/time"):
+            url = f"{self._base_url}{path}"
+            try:
+                ex1_log.info("REST request | GET %s | connectivity check", path)
+                resp = await client.get(url)
+                last_status = resp.status_code
+                last_body = (resp.text or "")[:2000]
+                ex1_log.info(
+                    "REST response | GET %s | status=%s | body=%s",
+                    path,
+                    resp.status_code,
+                    last_body,
+                )
+                if resp.status_code == 200:
+                    self._logged_in = True
+                    log.info("Exchange1 adapter ready", base_url=self._base_url)
+                    ex1_log.info("Adapter ready | base_url=%s", self._base_url)
+                    return {"ok": True, "base_url": self._base_url}
+            except Exception as exc:
+                ex1_log.error("Connectivity check failed | GET %s | error=%s", path, exc)
+                raise BrokerError(f"Exchange1 connectivity check failed: {exc}") from exc
+
+        self._logged_in = False
+        raise BrokerError(
+            f"Exchange1 connectivity check failed: HTTP {last_status} at "
+            f"{self._base_url}{path}. "
+            "Verify EXCHANGE1_URL is the OpenAPI base URL from your exchange "
+            "(see exchange API docs; paths use /sapi/v1/...). "
+            f"Response: {last_body[:200]}"
+        )
 
     async def place_order(
         self,
@@ -217,7 +227,7 @@ class Exchange1BrokerAdapter(AbstractBrokerAdapter):
         if order_unique_identifier:
             payload["newClientOrderId"] = str(order_unique_identifier)[:32]
 
-        data = await self._request("POST", "/sapi/v2/order", payload)
+        data = await self._request("POST", "/sapi/v1/order", payload)
         result = data.get("data") or data.get("result") or data
         broker_order_id = str(
             result.get("orderIdString")
@@ -270,7 +280,7 @@ class Exchange1BrokerAdapter(AbstractBrokerAdapter):
                 f"Cannot cancel Exchange1 order {broker_order_id}: symbol unknown"
             )
         payload = {"orderId": str(broker_order_id), "symbol": symbol}
-        data = await self._request("POST", "/sapi/v2/cancel", payload)
+        data = await self._request("POST", "/sapi/v1/cancel", payload)
         return {"raw": data.get("data") or data}
 
     async def cancel_all_orders(
@@ -308,7 +318,7 @@ class Exchange1BrokerAdapter(AbstractBrokerAdapter):
 
     async def get_order_book(self) -> Dict[str, Any]:
         try:
-            data = await self._request("GET", "/sapi/v2/openOrders")
+            data = await self._request("GET", "/sapi/v1/openOrders")
             rows = data.get("data") or data.get("result") or data.get("list") or []
             if isinstance(rows, dict):
                 rows = rows.get("list") or rows.get("orders") or []

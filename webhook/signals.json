@@ -1092,5 +1092,27 @@
     "productType": "MIS",
     "timestamp": 1784530542627,
     "receivedAt": "2026-07-20T06:55:42.627Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 0.01,
+    "symbol": "BTCUSDT",
+    "orderType": "LIMIT",
+    "limitPrice": 65000,
+    "productType": "SPOT",
+    "timestamp": 1784531048322,
+    "receivedAt": "2026-07-20T07:04:08.322Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 0.01,
+    "symbol": "BTCUSDT",
+    "orderType": "LIMIT",
+    "limitPrice": 65000,
+    "productType": "SPOT",
+    "timestamp": 1784531187710,
+    "receivedAt": "2026-07-20T07:06:27.710Z"
   }
 ]

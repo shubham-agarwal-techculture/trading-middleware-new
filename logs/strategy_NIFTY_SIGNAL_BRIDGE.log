@@ -96,3 +96,12 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2026-07-20 12:23:59 | INFO     | [QUEUED]   oms_id=b336a5b199324323be | signal_id=9288fe4e31564d1188230f64be8e2c77 | SENSEX2672379000CE | side=BUY | qty=20 | type=LIMIT
 2026-07-20 12:24:01 | ERROR    | [OMS_ERROR] oms_id=b336a5b199324323be | code=BROKER_ERROR | Token/Authorization not found
 2026-07-20 12:24:01 | ERROR    | [ERROR]    oms_id=b336a5b199324323be | SENSEX2672379000CE | BROKER_ERROR | Token/Authorization not found
+2026-07-20 12:25:43 | INFO     | [QUEUED]   oms_id=e3085253bb12407eb9 | signal_id=fad4b1fca63a496b943e97b86d116a99 | SENSEX2672379000CE | side=BUY | qty=20 | type=LIMIT
+2026-07-20 12:25:43 | INFO     | [ACK]      oms_id=e3085253bb12407eb9 | broker_id=1110034361 | SENSEX2672379000CE | side=BUY | qty=20
+2026-07-20 12:25:47 | WARNING  | [REJECTED]  oms_id=e3085253bb12407eb9 | SENSEX2672379000CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [445] in form of Cash. TotalRequired Cash : 445, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-20 12:34:08 | INFO     | [QUEUED]   oms_id=b4d24b1c7b7f4ad4b9 | signal_id=e8e46ddf26544a55be7364213b3eb57f | BTC/USDT | side=BUY | qty=0 | type=LIMIT
+2026-07-20 12:34:09 | ERROR    | [OMS_ERROR] oms_id=b4d24b1c7b7f4ad4b9 | code=BROKER_ERROR | Crypto broker unavailable: Exchange1 API key/secret not configured (crypto_broker.app_key / secret_key)
+2026-07-20 12:34:09 | ERROR    | [ERROR]    oms_id=b4d24b1c7b7f4ad4b9 | BTC/USDT | BROKER_ERROR | Crypto broker unavailable: Exchange1 API key/secret not configured (crypto_broker.app_key / secret_key)
+2026-07-20 12:36:27 | INFO     | [QUEUED]   oms_id=ff8fb973c35949dba3 | signal_id=613c63c12eee43e989de01e0115fa288 | BTC/USDT | side=BUY | qty=0 | type=LIMIT
+2026-07-20 12:36:29 | ERROR    | [OMS_ERROR] oms_id=ff8fb973c35949dba3 | code=BROKER_ERROR | Exchange1 HTTP 404: {'raw': '404 page not found\n'}
+2026-07-20 12:36:29 | ERROR    | [ERROR]    oms_id=ff8fb973c35949dba3 | BTC/USDT | BROKER_ERROR | Exchange1 HTTP 404: {'raw': '404 page not found\n'}
