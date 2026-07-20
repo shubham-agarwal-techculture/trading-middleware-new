@@ -508,6 +508,71 @@
         }
 
         /* ---------- history ---------- */
+        const expandedHistoryKeys = new Set();
+
+        function historyKey(item, idx) {
+            const base = String(
+                item.signal_id
+                || item.oms_order_id
+                || item.closed_at
+                || item.opened_at
+                || idx
+            );
+            return `h${idx}-${base.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+        }
+
+        function historyFailureReason(item) {
+            return (
+                item.failure_reason
+                || item.reject_reason
+                || item.error_message
+                || null
+            );
+        }
+
+        function historyDetailFields(item) {
+            const status = (item.final_status || item.status || '').toUpperCase();
+            const exit = item.current_ltp ?? item.ltp ?? item.exit_price;
+            const pnl = computePnl(item);
+            return [
+                ['Instrument', item.instrument],
+                ['Segment', item.exchange_segment],
+                ['Instrument ID', item.exchange_instrument_id],
+                ['Asset Class', item.asset_class],
+                ['Side', item.side],
+                ['Qty', item.qty],
+                ['Entry', item.entry_price ?? item.limit_price],
+                ['Exit / LTP', exit],
+                ['P&L', pnl === null ? null : fmtMoney(pnl)],
+                ['Status', item.status],
+                ['Final Result', status],
+                ['Signal ID', item.signal_id],
+                ['OMS Order ID', item.oms_order_id],
+                ['Square-off Signal', item.squareoff_signal_id],
+                ['Rejection / Error', historyFailureReason(item)],
+                ['Error Code', item.error_code],
+                ['Opened', fmtDate(item.opened_at)],
+                ['Closed', fmtDate(item.closed_at)],
+            ];
+        }
+
+        function toggleHistoryDetails(key, btn) {
+            const row = document.getElementById(`history-details-${key}`);
+            if (!row || !btn) return;
+            const open = row.hasAttribute('hidden');
+            if (open) {
+                row.removeAttribute('hidden');
+                btn.setAttribute('aria-expanded', 'true');
+                btn.textContent = 'Hide';
+                expandedHistoryKeys.add(key);
+            } else {
+                row.setAttribute('hidden', '');
+                btn.setAttribute('aria-expanded', 'false');
+                btn.textContent = 'Details';
+                expandedHistoryKeys.delete(key);
+            }
+        }
+
         async function fetchHistory() {
             try {
                 const res = await fetch(`${API_BASE}/history`);
@@ -520,27 +585,27 @@
                 setConnection(false);
             }
         }
-        function historyFailureReason(item) {
-            return (
-                item.failure_reason
-                || item.reject_reason
-                || item.error_message
-                || null
-            );
-        }
 
         function renderHistory() {
             const body = document.getElementById('history-body');
             const empty = document.getElementById('history-empty');
             const table = document.getElementById('history-table');
             const q = (document.getElementById('history-search').value || '').toLowerCase();
+            const dash = '\u2014';
+            const show = (v) => (v === null || v === undefined || v === '' ? dash : String(v));
             const items = (historyCache || []).filter(i => {
                 if (!q) return true;
-                const hay = [
-                    i.instrument,
-                    historyFailureReason(i),
-                ].filter(Boolean).join(' ').toLowerCase();
+                const hay = historyDetailFields(i)
+                    .map(([, v]) => show(v))
+                    .filter(v => v !== dash)
+                    .join(' ')
+                    .toLowerCase();
                 return hay.includes(q);
+            });
+
+            const currentKeys = new Set(items.map((i, idx) => historyKey(i, idx)));
+            expandedHistoryKeys.forEach((k) => {
+                if (!currentKeys.has(k)) expandedHistoryKeys.delete(k);
             });
 
             // KPI: realized pnl + win rate over full history (not just filtered)
@@ -566,29 +631,52 @@
             }
             table.classList.remove('hidden');
             empty.classList.add('hidden');
-            body.innerHTML = items.map(i => {
+            body.innerHTML = items.map((i, idx) => {
                 const status = (i.final_status || i.status || '').toUpperCase();
                 const side = (i.side || 'BUY').toUpperCase();
                 const pnl = computePnl(i);
                 const exit = i.current_ltp ?? i.ltp ?? i.exit_price;
                 const failReason = historyFailureReason(i);
                 const isFailed = ['REJECTED', 'ERROR', 'CANCELLED', 'EXPIRED'].includes(status);
+                const key = historyKey(i, idx);
+                const isOpen = expandedHistoryKeys.has(key);
                 const reasonCell = failReason
                     ? `<span class="history-reason" title="${escapeAttr(failReason)}">${escapeHtml(failReason)}</span>`
-                    : '\u2014';
+                    : dash;
+                const fields = historyDetailFields(i);
+                const detailsHtml = fields.map(([label, value]) => {
+                    const text = show(value);
+                    const empty = text === dash;
+                    const isReason = label === 'Rejection / Error' && !empty;
+                    return `
+                        <div class="history-detail${empty ? ' empty' : ''}${isReason ? ' history-detail-error' : ''}">
+                            <span class="history-detail-label">${escapeHtml(label)}</span>
+                            <span class="history-detail-value">${escapeHtml(text)}</span>
+                        </div>`;
+                }).join('');
                 return `
-                    <tr class="${isFailed && failReason ? 'history-failed' : ''}">
-                        <td><div class="instrument-name">${i.instrument || '\u2014'}</div><div class="instrument-sub">ID: ${i.exchange_instrument_id ?? '\u2014'}</div></td>
-                        <td><span class="badge seg">${i.exchange_segment || '\u2014'}</span></td>
+                    <tr class="history-row ${isFailed && failReason ? 'history-failed' : ''}${isOpen ? ' expanded' : ''}">
+                        <td><div class="instrument-name">${i.instrument || dash}</div><div class="instrument-sub">ID: ${i.exchange_instrument_id ?? dash}</div></td>
+                        <td><span class="badge seg">${i.exchange_segment || dash}</span></td>
                         <td><span class="badge ${side.toLowerCase()}">${side}</span></td>
-                        <td class="num">${i.qty ?? '\u2014'}</td>
+                        <td class="num">${i.qty ?? dash}</td>
                         <td class="num">${fmtNum(i.entry_price)}</td>
                         <td class="num">${fmtNum(exit)}</td>
-                        <td class="num ${pnlClass(pnl)}">${pnl === null ? '\u2014' : fmtMoney(pnl)}</td>
+                        <td class="num ${pnlClass(pnl)}">${pnl === null ? dash : fmtMoney(pnl)}</td>
                         <td><span class="badge ${status.toLowerCase()}">${status || 'N/A'}</span></td>
                         <td class="history-reason-cell">${reasonCell}</td>
                         <td>${fmtDate(i.opened_at)}</td>
                         <td>${fmtDate(i.closed_at)}</td>
+                        <td class="history-actions">
+                            <button type="button" class="history-toggle" data-history-key="${escapeAttr(key)}"
+                                aria-expanded="${isOpen ? 'true' : 'false'}"
+                                onclick="toggleHistoryDetails('${escapeAttr(key)}', this)">${isOpen ? 'Hide' : 'Details'}</button>
+                        </td>
+                    </tr>
+                    <tr id="history-details-${escapeAttr(key)}" class="history-details-row"${isOpen ? '' : ' hidden'}>
+                        <td colspan="12">
+                            <div class="history-details">${detailsHtml}</div>
+                        </td>
                     </tr>`;
             }).join('');
         }

@@ -1165,5 +1165,45 @@
     "productType": "MIS",
     "timestamp": 1784531999225,
     "receivedAt": "2026-07-20T07:19:59.225Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 20,
+    "symbol": "BSX260723C79000",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784532397749,
+    "receivedAt": "2026-07-20T07:26:37.749Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 20,
+    "symbol": "BSX260723C79000",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784532536321,
+    "receivedAt": "2026-07-20T07:28:56.321Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260721C24950",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784532684770,
+    "receivedAt": "2026-07-20T07:31:24.770Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260721C24950",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784532828056,
+    "receivedAt": "2026-07-20T07:33:48.056Z"
   }
 ]

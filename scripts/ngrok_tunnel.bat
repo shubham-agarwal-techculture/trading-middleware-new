@@ -1,31 +1,9 @@
 @echo off
-REM Start ngrok for the webhook/dashboard port.
-REM Stops any existing ngrok.exe first to avoid session / port conflicts.
+REM Start ngrok on the same port as the local webhook/dashboard (auto-detected).
 setlocal EnableDelayedExpansion
 
-set "ROOT=%~dp0.."
-set "PORT_FILE=%ROOT%\.webhook_http_port"
 set "FALLBACK=%~1"
 if "%FALLBACK%"=="" set "FALLBACK=5001"
-set "PORT=%FALLBACK%"
-set "WAIT=0"
-set "MAX_WAIT=20"
-
-:wait_port
-if exist "%PORT_FILE%" (
-    set /p PORT=<"%PORT_FILE%"
-    if not "!PORT!"=="" goto :port_ready
-)
-if !WAIT! GEQ %MAX_WAIT% goto :port_ready
-timeout /t 1 /nobreak >nul
-set /a WAIT+=1
-goto :wait_port
-
-:port_ready
-if not "!PORT!"=="!FALLBACK!" (
-    echo [ngrok] Webhook auto-selected port !PORT! ^(preferred !FALLBACK!^)
-)
-
 set "RETRIES=0"
 set "MAX_RETRIES=5"
 
@@ -41,8 +19,15 @@ if not errorlevel 1 (
 )
 exit /b 0
 
+:resolve_port
+call "%~dp0resolve_webhook_port.bat" %FALLBACK% 45
+set "PORT=%WEBHOOK_PORT%"
+if "%PORT%"=="" set "PORT=%FALLBACK%"
+exit /b 0
+
 :start_ngrok
-echo [ngrok] Starting tunnel: localhost:!PORT!
+call :resolve_port
+echo [ngrok] Tunnel target: localhost:!PORT! (webhook/dashboard)
 ngrok http !PORT!
 set "EC=!ERRORLEVEL!"
 
@@ -54,7 +39,7 @@ if !RETRIES! GEQ %MAX_RETRIES% (
     goto :done
 )
 
-echo [ngrok] Exited with code !EC! — conflict or error. Retrying (!RETRIES!/%MAX_RETRIES%)...
+echo [ngrok] Exited with code !EC! — retrying (!RETRIES!/%MAX_RETRIES%)...
 call :stop_ngrok
 timeout /t 2 /nobreak >nul
 goto :start_ngrok

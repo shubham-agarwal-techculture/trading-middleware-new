@@ -122,3 +122,12 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2026-07-20 12:49:59 | INFO     | [QUEUED]   oms_id=52d7b5c84f8746e6a3 | signal_id=599e4b89a1824b96833b1cb3f35848b6 | NIFTY2672124950CE | side=BUY | qty=65 | type=LIMIT
 2026-07-20 12:49:59 | INFO     | [ACK]      oms_id=52d7b5c84f8746e6a3 | broker_id=1110032471 | NIFTY2672124950CE | side=BUY | qty=65
 2026-07-20 12:50:20 | WARNING  | [REJECTED]  oms_id=52d7b5c84f8746e6a3 | NIFTY2672124950CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [50.5] in form of Cash. TotalRequired Cash : 50.5, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-20 12:58:07 | INFO     | [QUEUED]   oms_id=0e14a1d7a47046c083 | signal_id=063416ea8be6474b8e2f5c97441a39d3 | SENSEX2672379000CE | side=BUY | qty=20 | type=LIMIT
+2026-07-20 12:58:07 | INFO     | [ACK]      oms_id=0e14a1d7a47046c083 | broker_id=1110034363 | SENSEX2672379000CE | side=BUY | qty=20
+2026-07-20 12:58:38 | WARNING  | [REJECTED]  oms_id=0e14a1d7a47046c083 | SENSEX2672379000CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [421] in form of Cash. TotalRequired Cash : 421, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-20 12:58:56 | INFO     | [QUEUED]   oms_id=bb0bb653cac445198e | signal_id=570c6f25927c45159ff9cc5dcc554660 | SENSEX2672379000CE | side=BUY | qty=20 | type=LIMIT
+2026-07-20 12:58:57 | INFO     | [ACK]      oms_id=bb0bb653cac445198e | broker_id=1110034364 | SENSEX2672379000CE | side=BUY | qty=20
+2026-07-20 12:59:09 | WARNING  | [REJECTED]  oms_id=bb0bb653cac445198e | SENSEX2672379000CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [453.5] in form of Cash. TotalRequired Cash : 453.5, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-20 13:03:48 | INFO     | [QUEUED]   oms_id=765c62343ec6460bae | signal_id=cee387d57b4647279e93b7c141127ceb | NIFTY2672124950CE | side=BUY | qty=65 | type=LIMIT
+2026-07-20 13:03:48 | INFO     | [ACK]      oms_id=765c62343ec6460bae | broker_id=1110032472 | NIFTY2672124950CE | side=BUY | qty=65
+2026-07-20 13:04:07 | WARNING  | [REJECTED]  oms_id=765c62343ec6460bae | NIFTY2672124950CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [45.62] in form of Cash. TotalRequired Cash : 45.625, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
