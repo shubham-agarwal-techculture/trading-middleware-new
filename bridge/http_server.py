@@ -31,6 +31,7 @@ from bridge.positions import (
     load_history,
     load_positions,
     save_positions,
+    update_alert_for_signal,
 )
 from bridge.signal_service import handle_signal
 
@@ -154,6 +155,13 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
             parts.append(f"qty={qty}")
         if status:
             parts.append(f"[{status}]")
+        fail_reason = (
+            result.get("failure_reason")
+            or result.get("reject_reason")
+            or result.get("error_message")
+        )
+        if fail_reason and str(fail_reason) not in " ".join(parts):
+            parts.append(f"— {fail_reason}")
 
         order = {
             "action": str(action).upper() if action else None,
@@ -179,6 +187,10 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
             "signal_id": result.get("signal_id"),
             "status": result.get("status"),
             "result_message": result.get("message"),
+            "failure_reason": result.get("failure_reason"),
+            "reject_reason": result.get("reject_reason"),
+            "error_message": result.get("error_message"),
+            "error_code": result.get("error_code"),
             "msg_type": result.get("msg_type"),
             "asset_class": result.get("asset_class") or classify_signal(signal),
         }

@@ -352,6 +352,14 @@
         }
 
         /* ---------- alerts ---------- */
+        const expandedAlertKeys = new Set();
+
+        function alertKey(a, idx) {
+            const order = a.order || {};
+            const result = a.result || {};
+            return String(order.signal_id || result.signal_id || a.timestamp || idx);
+        }
+
         async function fetchAlerts() {
             try {
                 const res = await fetch(`${API_BASE}/alerts`);
@@ -364,6 +372,18 @@
                 setConnection(false);
             }
         }
+        function alertFailureReason(order, result) {
+            return (
+                order.failure_reason
+                || order.reject_reason
+                || order.error_message
+                || result.failure_reason
+                || result.reject_reason
+                || result.error_message
+                || null
+            );
+        }
+
         function renderAlerts(alerts) {
             const container = document.getElementById('alerts-container');
             if (!alerts || alerts.length === 0) {
@@ -372,10 +392,17 @@
             }
             const dash = '\u2014';
             const show = (v) => (v === null || v === undefined || v === '' ? dash : String(v));
+            const currentKeys = new Set(alerts.map((a, idx) => alertKey(a, idx)));
+            expandedAlertKeys.forEach((k) => {
+                if (!currentKeys.has(k)) expandedAlertKeys.delete(k);
+            });
             container.innerHTML = alerts.map((a, idx) => {
                 const order = a.order || {};
                 const data = a.data || {};
                 const result = a.result || {};
+                const key = alertKey(a, idx);
+                const isOpen = expandedAlertKeys.has(key);
+                const failReason = alertFailureReason(order, result);
                 const fields = [
                     ['Action', order.action || data.action || order.order_side],
                     ['Position', order.position || data.position],
@@ -393,6 +420,8 @@
                     ['Strike', order.strike],
                     ['Signal ID', order.signal_id || result.signal_id],
                     ['Status', order.status || result.status],
+                    ['Rejection / Error', failReason],
+                    ['Error Code', order.error_code || result.error_code],
                     ['Result', order.result_message || result.message],
                 ];
 
@@ -400,12 +429,24 @@
                 const instrument = show(fields[2][1]);
                 const qty = show(fields[6][1]);
                 const status = show(fields[15][1]);
+                const reasonText = show(failReason);
+                const isFailed = ['rejected', 'error', 'failed', 'squareoff_failed', 'cancelled', 'expired']
+                    .includes(String(order.status || result.status || '').toLowerCase())
+                    || (failReason && reasonText !== dash);
 
-                const detailsHtml = `<div class="alert-details" id="alert-details-${idx}" hidden>${fields.map(([label, value]) => {
+                const reasonBanner = (isFailed && reasonText !== dash)
+                    ? `<div class="alert-failure-reason">${escapeHtml(reasonText)}</div>`
+                    : '';
+                const reasonChip = (reasonText !== dash)
+                    ? `<span class="alert-chip alert-chip-error grow"><b>Reason</b> ${escapeHtml(reasonText)}</span>`
+                    : '';
+
+                const detailsHtml = `<div class="alert-details"${isOpen ? '' : ' hidden'}>${fields.map(([label, value]) => {
                     const text = show(value);
                     const empty = text === dash;
+                    const isReason = label === 'Rejection / Error' && !empty;
                     return `
-                        <div class="alert-detail${empty ? ' empty' : ''}">
+                        <div class="alert-detail${empty ? ' empty' : ''}${isReason ? ' alert-detail-error' : ''}">
                             <span class="alert-detail-label">${escapeHtml(label)}</span>
                             <span class="alert-detail-value">${escapeHtml(text)}</span>
                         </div>`;
@@ -413,41 +454,50 @@
 
                 const statusClass = String(order.status || result.status || '').toLowerCase();
                 return `
-                <div class="alert-item compact ${(a.type || '').toLowerCase()} ${statusClass}">
+                <div class="alert-item compact ${(a.type || '').toLowerCase()} ${statusClass}${isOpen ? ' expanded' : ''}">
                     <div class="alert-header">
                         <div class="alert-title-row">
                             <span class="badge ${(a.type || 'signal').toLowerCase()}">${escapeHtml((a.type || 'SIGNAL').toUpperCase())}</span>
                             <span class="alert-timestamp">${fmtDate(a.timestamp)}</span>
                         </div>
-                        <button type="button" class="alert-toggle" aria-expanded="false"
-                            onclick="toggleAlertDetails(${idx}, this)">Details</button>
+                        <button type="button" class="alert-toggle" data-alert-key="${escapeAttr(key)}"
+                            aria-expanded="${isOpen ? 'true' : 'false'}"
+                            onclick="toggleAlertDetails(this)">${isOpen ? 'Hide' : 'Details'}</button>
                     </div>
                     <div class="alert-message">${escapeHtml(a.message || '')}</div>
+                    ${reasonBanner}
                     <div class="alert-summary">
                         <span class="alert-chip"><b>Action</b> ${escapeHtml(action)}</span>
                         <span class="alert-chip"><b>Qty</b> ${escapeHtml(qty)}</span>
                         <span class="alert-chip"><b>Status</b> ${escapeHtml(status)}</span>
                         <span class="alert-chip grow"><b>Instrument</b> ${escapeHtml(instrument)}</span>
+                        ${reasonChip}
                     </div>
                     ${detailsHtml}
                 </div>`;
             }).join('');
         }
-        function toggleAlertDetails(idx, btn) {
-            const el = document.getElementById(`alert-details-${idx}`);
-            if (!el) return;
+        function toggleAlertDetails(btn) {
+            const key = btn.getAttribute('data-alert-key');
+            const el = btn.closest('.alert-item')?.querySelector('.alert-details');
+            if (!el || !key) return;
             const open = el.hasAttribute('hidden');
             if (open) {
                 el.removeAttribute('hidden');
                 btn.setAttribute('aria-expanded', 'true');
                 btn.textContent = 'Hide';
                 btn.closest('.alert-item')?.classList.add('expanded');
+                expandedAlertKeys.add(key);
             } else {
                 el.setAttribute('hidden', '');
                 btn.setAttribute('aria-expanded', 'false');
                 btn.textContent = 'Details';
                 btn.closest('.alert-item')?.classList.remove('expanded');
+                expandedAlertKeys.delete(key);
             }
+        }
+        function escapeAttr(s) {
+            return escapeHtml(String(s));
         }
         function escapeHtml(s) {
             return String(s)
@@ -470,12 +520,28 @@
                 setConnection(false);
             }
         }
+        function historyFailureReason(item) {
+            return (
+                item.failure_reason
+                || item.reject_reason
+                || item.error_message
+                || null
+            );
+        }
+
         function renderHistory() {
             const body = document.getElementById('history-body');
             const empty = document.getElementById('history-empty');
             const table = document.getElementById('history-table');
             const q = (document.getElementById('history-search').value || '').toLowerCase();
-            const items = (historyCache || []).filter(i => !q || (i.instrument || '').toLowerCase().includes(q));
+            const items = (historyCache || []).filter(i => {
+                if (!q) return true;
+                const hay = [
+                    i.instrument,
+                    historyFailureReason(i),
+                ].filter(Boolean).join(' ').toLowerCase();
+                return hay.includes(q);
+            });
 
             // KPI: realized pnl + win rate over full history (not just filtered)
             let realized = 0, realizedCount = 0, wins = 0;
@@ -505,8 +571,13 @@
                 const side = (i.side || 'BUY').toUpperCase();
                 const pnl = computePnl(i);
                 const exit = i.current_ltp ?? i.ltp ?? i.exit_price;
+                const failReason = historyFailureReason(i);
+                const isFailed = ['REJECTED', 'ERROR', 'CANCELLED', 'EXPIRED'].includes(status);
+                const reasonCell = failReason
+                    ? `<span class="history-reason" title="${escapeAttr(failReason)}">${escapeHtml(failReason)}</span>`
+                    : '\u2014';
                 return `
-                    <tr>
+                    <tr class="${isFailed && failReason ? 'history-failed' : ''}">
                         <td><div class="instrument-name">${i.instrument || '\u2014'}</div><div class="instrument-sub">ID: ${i.exchange_instrument_id ?? '\u2014'}</div></td>
                         <td><span class="badge seg">${i.exchange_segment || '\u2014'}</span></td>
                         <td><span class="badge ${side.toLowerCase()}">${side}</span></td>
@@ -515,6 +586,7 @@
                         <td class="num">${fmtNum(exit)}</td>
                         <td class="num ${pnlClass(pnl)}">${pnl === null ? '\u2014' : fmtMoney(pnl)}</td>
                         <td><span class="badge ${status.toLowerCase()}">${status || 'N/A'}</span></td>
+                        <td class="history-reason-cell">${reasonCell}</td>
                         <td>${fmtDate(i.opened_at)}</td>
                         <td>${fmtDate(i.closed_at)}</td>
                     </tr>`;

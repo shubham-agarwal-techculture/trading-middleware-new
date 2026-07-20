@@ -72,3 +72,18 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2026-07-20 12:00:19 | INFO     | [QUEUED]   oms_id=6425a0f9663146a08e | signal_id=2d7b6de1249b459dbb98d5e065703261 | NIFTY2672124950CE | side=BUY | qty=65 | type=LIMIT
 2026-07-20 12:00:19 | INFO     | [ACK]      oms_id=6425a0f9663146a08e | broker_id=1110032469 | NIFTY2672124950CE | side=BUY | qty=65
 2026-07-20 12:00:30 | WARNING  | [REJECTED]  oms_id=6425a0f9663146a08e | NIFTY2672124950CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [48.88] in form of Cash. TotalRequired Cash : 48.875, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-20 12:06:14 | INFO     | [QUEUED]   oms_id=b0ca3ab2267f4fa2b9 | signal_id=510d8bd7e7e6418bb3032b54c3bd5f27 | NIFTY2672124950CE | side=BUY | qty=65 | type=LIMIT
+2026-07-20 12:06:16 | INFO     | [ACK]      oms_id=b0ca3ab2267f4fa2b9 | broker_id=1110032470 | NIFTY2672124950CE | side=BUY | qty=65
+2026-07-20 12:06:22 | WARNING  | [REJECTED]  oms_id=b0ca3ab2267f4fa2b9 | NIFTY2672124950CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [48.88] in form of Cash. TotalRequired Cash : 48.875, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-20 12:06:53 | INFO     | [QUEUED]   oms_id=03c153e43943432fb0 | signal_id=31cb9364ef594d2b9ab61ab8c8ee6abd | SENSEX2672379000CE | side=BUY | qty=65 | type=LIMIT
+2026-07-20 12:06:53 | INFO     | [ACK]      oms_id=03c153e43943432fb0 | broker_id=1110034357 | SENSEX2672379000CE | side=BUY | qty=65
+2026-07-20 12:07:23 | WARNING  | [REJECTED]  oms_id=03c153e43943432fb0 | SENSEX2672379000CE | reason=Gateway:Supplied Quantity is not in multiple of LotSize.
+2026-07-20 12:07:42 | INFO     | [QUEUED]   oms_id=9ecc7d4a1fad4af49d | signal_id=9d06689e173b4908b7c2b6ea9101f286 | SENSEX2672379000CE | side=BUY | qty=25 | type=LIMIT
+2026-07-20 12:07:42 | INFO     | [ACK]      oms_id=9ecc7d4a1fad4af49d | broker_id=1110034358 | SENSEX2672379000CE | side=BUY | qty=25
+2026-07-20 12:07:54 | WARNING  | [REJECTED]  oms_id=9ecc7d4a1fad4af49d | SENSEX2672379000CE | reason=Gateway:Supplied Quantity is not in multiple of LotSize.
+2026-07-20 12:08:10 | INFO     | [QUEUED]   oms_id=845a038bba174773b6 | signal_id=134f5f3126cb4350947996cda729d3df | SENSEX2672379000CE | side=BUY | qty=20 | type=LIMIT
+2026-07-20 12:08:10 | INFO     | [ACK]      oms_id=845a038bba174773b6 | broker_id=1110034359 | SENSEX2672379000CE | side=BUY | qty=20
+2026-07-20 12:08:24 | WARNING  | [REJECTED]  oms_id=845a038bba174773b6 | SENSEX2672379000CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [432.5] in form of Cash. TotalRequired Cash : 432.5, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-20 12:08:37 | INFO     | [QUEUED]   oms_id=a64a7740ce6148fea2 | signal_id=8590a6648add43a3b4ee24445e35bcfb | BTC/USDT | side=BUY | qty=0 | type=LIMIT
+2026-07-20 12:08:38 | ERROR    | [OMS_ERROR] oms_id=a64a7740ce6148fea2 | code=BROKER_ERROR | Crypto broker unavailable: Exchange1 API key/secret not configured (crypto_broker.app_key / secret_key)
+2026-07-20 12:08:38 | ERROR    | [ERROR]    oms_id=a64a7740ce6148fea2 | BTC/USDT | BROKER_ERROR | Crypto broker unavailable: Exchange1 API key/secret not configured (crypto_broker.app_key / secret_key)

@@ -27,6 +27,7 @@ from bridge.positions import (
     get_ist_now,
     load_positions,
     save_positions,
+    update_alert_for_signal,
 )
 from bridge.resolution import find_contract_by_instrument_id, resolve_contract_by_ticker
 
@@ -72,9 +73,22 @@ def _error_response(message: str, **extra: Any) -> Dict[str, Any]:
 
 
 def _mark_pending_failure(signal_id: str, resp: Dict[str, Any]) -> None:
+    reason = _order_failure_reason(resp)
+    status = (
+        str(resp.get("status", "")).upper()
+        or str(resp.get("msg_type", "")).replace("ORDER_", "").upper()
+        or "ERROR"
+    )
+    update_alert_for_signal(
+        signal_id,
+        status=status,
+        failure_reason=reason,
+        reject_reason=resp.get("reject_reason") or "",
+        error_message=resp.get("error_message") or "",
+        error_code=resp.get("error_code") or "",
+    )
     if signal_id not in state.pending_orders:
         return
-    reason = _order_failure_reason(resp)
     state.pending_orders[signal_id]["status"] = "failed"
     state.pending_orders[signal_id]["failure_reason"] = reason
     state.pending_orders[signal_id]["error_code"] = resp.get("error_code")
@@ -674,6 +688,15 @@ async def on_oms_response(resp: Dict[str, Any]) -> None:
             ):
                 if status:
                     pos["status"] = status
+                    if _is_order_failure(resp) or str(status).upper() in _FAILURE_STATUSES:
+                        reason = _order_failure_reason(resp)
+                        pos["failure_reason"] = reason
+                        if resp.get("reject_reason"):
+                            pos["reject_reason"] = resp.get("reject_reason")
+                        if resp.get("error_message"):
+                            pos["error_message"] = resp.get("error_message")
+                        if resp.get("error_code"):
+                            pos["error_code"] = resp.get("error_code")
                     updated = True
             elif str_signal_id and pos_sq_sig_id == str_signal_id:
                 if status in ["FILLED", "COMPLETE"]:

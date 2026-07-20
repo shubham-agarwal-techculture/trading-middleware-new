@@ -127,6 +127,14 @@ def append_to_history(position, status):
     pos_copy = position.copy()
     pos_copy["final_status"] = status
     pos_copy["closed_at"] = get_ist_now()
+    if status.upper() in {"REJECTED", "ERROR", "CANCELLED", "EXPIRED"}:
+        pos_copy.setdefault(
+            "failure_reason",
+            pos_copy.get("failure_reason")
+            or pos_copy.get("reject_reason")
+            or pos_copy.get("error_message")
+            or "",
+        )
     history.insert(0, pos_copy)
     if len(history) > 1000:
         history = history[:1000]
@@ -165,6 +173,34 @@ def add_alert(alert_data):
         alerts = alerts[:MAX_ALERTS]
     save_alerts(alerts)
     return alert
+
+
+def update_alert_for_signal(signal_id: str, **updates) -> bool:
+    """Patch the most recent alert matching ``signal_id`` (e.g. OMS rejection)."""
+    if not signal_id:
+        return False
+    alerts = load_alerts()
+    updated = False
+    for alert in alerts:
+        order = alert.get("order") or {}
+        if str(order.get("signal_id") or "") != str(signal_id):
+            continue
+        merged = {**order, **{k: v for k, v in updates.items() if v is not None and v != ""}}
+        alert["order"] = merged
+        reason = (
+            merged.get("failure_reason")
+            or merged.get("reject_reason")
+            or merged.get("error_message")
+        )
+        if reason:
+            msg = alert.get("message") or ""
+            if reason not in msg:
+                alert["message"] = f"{msg} — {reason}" if msg else str(reason)
+        updated = True
+        break
+    if updated:
+        save_alerts(alerts)
+    return updated
 
 
 def periodic_cleanup():

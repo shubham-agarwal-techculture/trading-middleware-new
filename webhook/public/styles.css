@@ -189,6 +189,19 @@
         td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
         .instrument-name { font-weight: 700; }
         .instrument-sub { font-size: 12px; color: var(--muted); }
+        .history-reason-cell { max-width: 280px; min-width: 140px; }
+        .history-reason {
+            display: block;
+            font-size: 12px;
+            line-height: 1.35;
+            color: var(--red);
+            word-break: break-word;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+        tr.history-failed td { background: color-mix(in srgb, var(--red) 4%, transparent); }
 
         .badge {
             display: inline-block; padding: 4px 10px; border-radius: 999px;
@@ -226,6 +239,22 @@
             line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .alert-item.expanded .alert-message { white-space: normal; }
+        .alert-failure-reason {
+            margin: 0 0 6px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: color-mix(in srgb, var(--red) 12%, transparent);
+            border: 1px solid color-mix(in srgb, var(--red) 35%, transparent);
+            color: var(--red);
+            font-size: 12px;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+        .alert-chip-error {
+            border-color: color-mix(in srgb, var(--red) 40%, var(--border));
+            color: var(--red);
+        }
+        .alert-chip-error b { color: color-mix(in srgb, var(--red) 75%, var(--muted)); }
         .badge.signal { background: var(--amber-bg); color: var(--amber); font-size: 10px; padding: 2px 7px; }
         .badge.squareoff { background: var(--green-bg); color: var(--green); font-size: 10px; padding: 2px 7px; }
         .alert-toggle {
@@ -271,6 +300,7 @@
             word-break: break-word; min-height: 1.15em;
         }
         .alert-detail.empty .alert-detail-value { color: var(--muted); font-weight: 500; }
+        .alert-detail-error .alert-detail-value { color: var(--red); font-weight: 600; }
 
         .no-data { color: var(--muted); text-align: center; padding: 36px; }
 
