@@ -124,7 +124,7 @@ class Order:
     order_type: str
     order_side: str
     time_in_force: str
-    order_quantity: int
+    order_quantity: float
     limit_price: float
     stop_price: float
     disclosed_quantity: int
@@ -135,8 +135,8 @@ class Order:
     order_unique_identifier: str = ""    # Sent to broker; equals oms_order_id[:18]
 
     # --- Fill tracking ---
-    filled_quantity: int = 0
-    pending_quantity: int = 0
+    filled_quantity: float = 0
+    pending_quantity: float = 0
     avg_fill_price: float = 0.0
     last_fill_price: float = 0.0
     last_fill_quantity: int = 0
@@ -193,15 +193,15 @@ class Order:
             order_type=data["order_type"],
             order_side=data["order_side"],
             time_in_force=data["time_in_force"],
-            order_quantity=int(data["order_quantity"]),
+            order_quantity=float(data["order_quantity"]),
             limit_price=float(data.get("limit_price", 0.0)),
             stop_price=float(data.get("stop_price", 0.0)),
             disclosed_quantity=int(data.get("disclosed_quantity", 0)),
             status=OrderStatus(data.get("status", "ERROR")),
             broker_order_id=data.get("broker_order_id", ""),
             order_unique_identifier=data.get("order_unique_identifier", ""),
-            filled_quantity=int(data.get("filled_quantity", 0)),
-            pending_quantity=int(data.get("pending_quantity", 0)),
+            filled_quantity=float(data.get("filled_quantity", 0)),
+            pending_quantity=float(data.get("pending_quantity", 0)),
             avg_fill_price=float(data.get("avg_fill_price", 0.0)),
             last_fill_price=float(data.get("last_fill_price", 0.0)),
             last_fill_quantity=int(data.get("last_fill_quantity", 0)),

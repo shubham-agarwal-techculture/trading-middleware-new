@@ -87,7 +87,8 @@ bridge `signal_id`. Check Node logs for the forwarding result.
 The OMS writes session logs under `logs/`:
 
 - `oms_<timestamp>.log` for orchestration and order lifecycle;
-- `xts_<timestamp>.log` for broker requests, responses, and socket activity.
+- `xts_<timestamp>.log` for XTS broker requests, responses, and socket activity.
+- `exchange1_<timestamp>.log` for eXchange1 crypto REST requests/responses (when crypto is enabled).
 
 The `data/` directory contains:
 

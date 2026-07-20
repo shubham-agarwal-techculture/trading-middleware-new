@@ -297,12 +297,12 @@ class OrderManager:
             order_type=signal["order_type"],
             order_side=signal["order_side"],
             time_in_force=signal["time_in_force"],
-            order_quantity=int(signal["order_quantity"]),
+            order_quantity=float(signal["order_quantity"]),
             limit_price=float(signal.get("limit_price", 0.0)),
             stop_price=float(signal.get("stop_price", 0.0)),
             disclosed_quantity=int(signal.get("disclosed_quantity", 0)),
             order_unique_identifier=uid,
-            pending_quantity=int(signal["order_quantity"]),
+            pending_quantity=float(signal["order_quantity"]),
             status=OrderStatus.QUEUED,
             tags=signal.get("tags", {}),
         )
@@ -492,6 +492,7 @@ class OrderManager:
                     limit_price=order.limit_price,
                     stop_price=order.stop_price,
                     order_unique_identifier=order.order_unique_identifier,
+                    instrument_name=order.instrument_name or "",
                 )
 
                 broker_order_id = result.get("broker_order_id", "")
@@ -867,7 +868,25 @@ class OrderManager:
             new_status=new_status,
             filled_qty=order.filled_quantity,
             avg_price=order.avg_fill_price,
+            reject_reason=order.reject_reason or None,
+            error_message=order.error_message or None,
         )
+        if new_status == OrderStatus.REJECTED:
+            log.warning(
+                "Order rejected by broker",
+                oms_order_id=oms_id,
+                strategy=order.strategy_id,
+                instrument=order.instrument_name,
+                reason=order.reject_reason,
+            )
+        elif new_status == OrderStatus.ERROR:
+            log.error(
+                "Order error",
+                oms_order_id=oms_id,
+                strategy=order.strategy_id,
+                instrument=order.instrument_name,
+                reason=order.error_message,
+            )
         # Per-strategy file log
         _slog = self._slog(order.strategy_id)
         if new_status == OrderStatus.OPEN:
@@ -1032,13 +1051,50 @@ class OrderManager:
     async def _publish_response(self, resp: OrderResponse) -> None:
         try:
             await self._transport.publish(resp.strategy_id, resp.to_dict())
-            log.debug(
-                "Response published",
-                strategy=resp.strategy_id,
-                msg_type=resp.msg_type,
-                oms_order_id=resp.oms_order_id,
-                status=resp.status,
+            msg_type = resp.msg_type
+            if isinstance(msg_type, ResponseType):
+                msg_type = msg_type.value
+            msg_type = str(msg_type)
+            reason = (
+                resp.error_message
+                or resp.reject_reason
+                or resp.message
+                or resp.error_code
+                or ""
             )
+            if msg_type == ResponseType.ORDER_ERROR.value:
+                log.error(
+                    "Order failed",
+                    strategy=resp.strategy_id,
+                    msg_type=msg_type,
+                    oms_order_id=resp.oms_order_id,
+                    signal_id=resp.signal_id,
+                    instrument=resp.instrument_name,
+                    error_code=resp.error_code,
+                    reason=reason,
+                )
+            elif msg_type in (
+                ResponseType.ORDER_REJECTED.value,
+                ResponseType.ORDER_EXPIRED.value,
+                ResponseType.ORDER_CANCELLED.value,
+            ):
+                log.warning(
+                    "Order failed",
+                    strategy=resp.strategy_id,
+                    msg_type=msg_type,
+                    oms_order_id=resp.oms_order_id,
+                    signal_id=resp.signal_id,
+                    instrument=resp.instrument_name,
+                    reason=reason,
+                )
+            else:
+                log.debug(
+                    "Response published",
+                    strategy=resp.strategy_id,
+                    msg_type=msg_type,
+                    oms_order_id=resp.oms_order_id,
+                    status=resp.status,
+                )
         except Exception as exc:
             log.error("Failed to publish response", error=str(exc))
 

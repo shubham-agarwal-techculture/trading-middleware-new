@@ -1,5 +1,16 @@
         const API_BASE = window.API_BASE || 'http://localhost:5002';
         let historyCache = [];
+        let positionsCache = {};
+
+        function isCryptoPosition(p) {
+            if (!p) return false;
+            const seg = String(p.exchange_segment || '').toUpperCase();
+            if (['CRYPTO', 'EXCHANGE1', 'SPOT', 'CRYPTO_SPOT'].includes(seg)) return true;
+            if (String(p.asset_class || '').toLowerCase() === 'crypto') return true;
+            const name = String(p.instrument || '');
+            return /USDT|USDC|BUSD/i.test(name) || /\//.test(name);
+        }
+
 
         /* ---------- theme ---------- */
         function applyTheme(theme) {
@@ -67,6 +78,7 @@
             document.getElementById(`${tabName}-tab`).classList.add('active');
             document.querySelector(`.tab-btn[data-tab="${tabName}"]`).classList.add('active');
             if (tabName === 'positions') fetchPositions();
+            if (tabName === 'crypto') { fetchPositions(); toggleCryptoLimit(); }
             if (tabName === 'alerts') fetchAlerts();
             if (tabName === 'history') fetchHistory();
         }
@@ -76,8 +88,10 @@
             try {
                 const res = await fetch(`${API_BASE}/positions`);
                 const positions = await res.json();
+                positionsCache = positions || {};
                 setConnection(true);
-                renderPositions(positions);
+                renderPositions(positionsCache);
+                renderCryptoPositions(positionsCache);
                 stamp();
             } catch (e) {
                 console.error('positions error', e);
@@ -89,7 +103,7 @@
             const body = document.getElementById('positions-body');
             const empty = document.getElementById('positions-empty');
             const table = document.getElementById('positions-table');
-            const keys = Object.keys(positions || {});
+            const keys = Object.keys(positions || {}).filter(k => !isCryptoPosition(positions[k]));
 
             let openCount = 0, filledCount = 0, pendingCount = 0, totalUnrealized = 0, hasUnrealized = false;
 
@@ -247,6 +261,94 @@
             const r = document.getElementById('order-result');
             r.className = 'order-result ' + (ok ? 'ok' : 'err');
             r.textContent = msg;
+        }
+
+        /* ---------- crypto (Exchange1) ---------- */
+        function toggleCryptoLimit() {
+            const isLimit = document.getElementById('c-ordertype').value === 'LIMIT';
+            document.getElementById('field-crypto-limit').classList.toggle('hidden', !isLimit);
+        }
+        function resetCryptoForm() {
+            document.getElementById('crypto-form').reset();
+            const r = document.getElementById('crypto-result');
+            r.className = 'order-result';
+            r.textContent = '';
+            toggleCryptoLimit();
+        }
+        function showCryptoResult(ok, msg) {
+            const r = document.getElementById('crypto-result');
+            r.className = 'order-result ' + (ok ? 'ok' : 'err');
+            r.textContent = msg;
+        }
+        async function submitCryptoOrder(evt) {
+            evt.preventDefault();
+            const btn = document.getElementById('crypto-submit');
+            const payload = {
+                action: document.getElementById('c-action').value,
+                position: document.getElementById('c-position').value,
+                orderType: document.getElementById('c-ordertype').value,
+                productType: document.getElementById('c-product').value,
+                symbol: document.getElementById('c-symbol').value.trim(),
+                quantity: Number(document.getElementById('c-quantity').value),
+            };
+            if (!payload.symbol) { showCryptoResult(false, 'Symbol is required'); return; }
+            if (!payload.quantity || payload.quantity <= 0) { showCryptoResult(false, 'Quantity must be positive'); return; }
+            if (payload.orderType === 'LIMIT') {
+                const lp = document.getElementById('c-limit').value;
+                if (!lp) { showCryptoResult(false, 'Limit price is required for LIMIT orders'); return; }
+                payload.limitPrice = Number(lp);
+            }
+            btn.disabled = true; btn.textContent = 'Submitting\u2026';
+            try {
+                const res = await fetch(`${API_BASE}/signal`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                const status = (data.status || '').toLowerCase();
+                const ok = ['pending', 'submitted', 'processing', 'success'].includes(status);
+                showCryptoResult(ok, `${data.status || 'unknown'}: ${data.message || data.instrument || 'order received'}`);
+                fetchPositions(); fetchAlerts();
+            } catch (e) {
+                showCryptoResult(false, 'Request failed: ' + e.message);
+            } finally {
+                btn.disabled = false; btn.textContent = 'Submit Crypto Order';
+            }
+        }
+        function renderCryptoPositions(positions) {
+            const body = document.getElementById('crypto-positions-body');
+            const empty = document.getElementById('crypto-positions-empty');
+            const table = document.getElementById('crypto-positions-table');
+            if (!body || !empty || !table) return;
+            const keys = Object.keys(positions || {}).filter(k => isCryptoPosition(positions[k]));
+            if (keys.length === 0) {
+                body.innerHTML = '';
+                table.classList.add('hidden');
+                empty.classList.remove('hidden');
+                return;
+            }
+            table.classList.remove('hidden');
+            empty.classList.add('hidden');
+            body.innerHTML = keys.map(key => {
+                const p = positions[key];
+                const status = (p.status || '').toUpperCase();
+                const isFilled = status === 'FILLED' || status === 'COMPLETE';
+                const side = (p.side || 'BUY').toUpperCase();
+                const seg = p.exchange_segment || 'CRYPTO';
+                const sqBtn = isFilled ? `<button class="btn danger" onclick="squareOff('${key}')">Square Off</button>` : '';
+                return `<tr>
+                    <td><div class="instrument-name">${p.instrument || key}</div>
+                        <div class="instrument-sub">ID: ${p.exchange_instrument_id ?? key}</div></td>
+                    <td><span class="badge seg">${seg}</span></td>
+                    <td><span class="badge ${side.toLowerCase()}">${side}</span></td>
+                    <td class="num">${p.qty ?? '\u2014'}</td>
+                    <td class="num">${fmtNum(p.entry_price)}</td>
+                    <td><span class="badge ${status.toLowerCase()}">${status || 'N/A'}</span></td>
+                    <td>${fmtDate(p.opened_at)}</td>
+                    <td>${sqBtn}</td>
+                </tr>`;
+            }).join('');
         }
 
         /* ---------- alerts ---------- */
@@ -428,6 +530,7 @@
 
         toggleLimitPrice();
         updateActionHint();
+        toggleCryptoLimit();
         refreshAll();
         setInterval(() => {
             if (!document.getElementById('autorefresh').checked) return;

@@ -55,15 +55,17 @@ class AbstractBrokerAdapter(ABC):
         order_side: str,
         time_in_force: str,
         disclosed_quantity: int,
-        order_quantity: int,
+        order_quantity: float,
         limit_price: float,
         stop_price: float,
         order_unique_identifier: str,
+        instrument_name: str = "",
     ) -> Dict[str, Any]:
         """
         Place a new order.
 
         Returns dict with at least ``broker_order_id`` key.
+        ``instrument_name`` is required for symbol-based brokers (crypto).
         """
 
     @abstractmethod

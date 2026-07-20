@@ -1,0 +1,9 @@
+{
+  "action": "BUY",
+  "position": "long",
+  "quantity": 0.01,
+  "symbol": "BTCUSDT",
+  "orderType": "LIMIT",
+  "limitPrice": 65000,
+  "productType": "SPOT"
+}

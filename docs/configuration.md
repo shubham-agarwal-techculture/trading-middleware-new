@@ -9,6 +9,7 @@ Copy `.env.example` → `.env` (gitignored). Single-quote values that contain `$
 | `XTS_APP_KEY` / `XTS_SECRET_KEY` / `XTS_CLIENT_ID` | OMS Interactive API (`config.yaml` `${…}` refs) |
 | `XTS_MD_API_KEY` / `XTS_MD_API_SECRET` | Market-data LTP + master downloads |
 | `XTS_MD_REST_URL` / `XTS_MD_SOURCE` | Market-data base URL / source |
+| `EXCHANGE1_API_KEY` / `EXCHANGE1_API_SECRET` / `EXCHANGE1_URL` | Crypto OMS path (`crypto_broker` in `config.yaml`) |
 
 ## `config.yaml`
 
@@ -41,12 +42,34 @@ Loaded by `oms.config.load_config` after `python-dotenv`.
 
 | Setting | Purpose |
 |---------|---------|
-| `type` | Adapter selected by `create_broker` (currently `xts`) |
-| `url` | XTS Interactive API base URL |
+| `type` | Adapter selected by `create_broker` (`xts`, or `exchange1` for crypto-only) |
+| `url` | Broker REST base URL |
 | `source` / `client_id` | XTS account/session parameters |
 | `verify_ssl` | TLS certificate verification for broker requests |
-| `socket_enabled` | Enables low-latency Socket.IO order events |
+| `socket_enabled` | Enables low-latency Socket.IO order events (XTS) |
 | `socket_reconnect` | Enables socket reconnection behavior |
+
+### Crypto broker (optional)
+
+Add a `crypto_broker` section to route inferred crypto symbols to eXchange1
+while keeping India orders on XTS. The webhook/bridge payload does **not**
+need an `assetClass` field — `BTCUSDT` / `ETH/USDT` style symbols are detected
+automatically.
+
+```yaml
+crypto_broker:
+  enabled: true
+  type: exchange1
+  url: "${EXCHANGE1_URL}"
+  app_key: "${EXCHANGE1_API_KEY}"
+  secret_key: "${EXCHANGE1_API_SECRET}"
+  verify_ssl: true
+```
+
+| Variable | Purpose |
+|----------|---------|
+| `EXCHANGE1_API_KEY` / `EXCHANGE1_API_SECRET` | eXchange1 OpenAPI credentials |
+| `EXCHANGE1_URL` | Default `https://openapi.exchange1.com` |
 
 ### Storage and logging
 

@@ -207,6 +207,7 @@ def get_strategy_logger(strategy_id: str, log_dir: str = "./logs") -> logging.Lo
 
 
 _xts_logger: Optional[logging.Logger] = None
+_exchange1_logger: Optional[logging.Logger] = None
 
 
 def get_xts_logger(
@@ -247,4 +248,38 @@ def get_xts_logger(
     logger.addHandler(handler)
 
     _xts_logger = logger
+    return logger, log_path
+
+
+def get_exchange1_logger(
+    log_dir: str = "./logs",
+    log_file: str = "exchange1_{datetime}.log",
+    session_datetime: Optional[str] = None,
+) -> Tuple[logging.Logger, Path]:
+    """
+    Dedicated logger for eXchange1 crypto REST traffic.
+
+    Same session ``{datetime}`` stamp and IST timestamps as :func:`get_xts_logger`.
+    """
+    global _exchange1_logger
+    if _exchange1_logger is not None:
+        stamp = session_datetime or _session_datetime or session_datetime_str()
+        path = Path(log_dir) / resolve_log_filename(log_file, stamp)
+        return _exchange1_logger, path
+
+    stamp = session_datetime or _session_datetime or session_datetime_str()
+    resolved_name = resolve_log_filename(log_file, stamp)
+
+    Path(log_dir).mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger("exchange1")
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+
+    log_path = Path(log_dir) / resolved_name
+    handler = logging.FileHandler(log_path, encoding="utf-8")
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(_stdlib_formatter(_log_timezone))
+    logger.addHandler(handler)
+
+    _exchange1_logger = logger
     return logger, log_path

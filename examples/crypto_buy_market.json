@@ -1,0 +1,8 @@
+{
+  "action": "BUY",
+  "position": "long",
+  "quantity": 0.01,
+  "symbol": "ETH/USDT",
+  "orderType": "MARKET",
+  "productType": "SPOT"
+}

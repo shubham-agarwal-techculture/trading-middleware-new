@@ -12,7 +12,7 @@
         <header>
             <div class="title">
                 <h1>Trading Dashboard</h1>
-                <p>NSE &middot; BSE &middot; MCX order &amp; position management</p>
+                <p>NSE &middot; BSE &middot; MCX &middot; Crypto (Exchange1)</p>
             </div>
             <div class="header-controls">
                 <div class="conn"><span id="conn-dot" class="dot"></span><span id="conn-text">Connecting…</span></div>
@@ -49,6 +49,7 @@
         <div class="tabs">
             <button class="tab-btn active" data-tab="positions" onclick="switchTab('positions')">Open Positions</button>
             <button class="tab-btn" data-tab="order" onclick="switchTab('order')">New Order</button>
+            <button class="tab-btn" data-tab="crypto" onclick="switchTab('crypto')">Crypto</button>
             <button class="tab-btn" data-tab="alerts" onclick="switchTab('alerts')">Alerts</button>
             <button class="tab-btn" data-tab="history" onclick="switchTab('history')">History</button>
         </div>
@@ -83,7 +84,7 @@
 
             <div id="order-tab" class="tab-content">
                 <div class="card-header">
-                    <h2>Place Order</h2>
+                    <h2>Place Order (India)</h2>
                     <div class="seg-toggle">
                         <button id="mode-symbol" class="active" onclick="setOrderMode('symbol')">By Symbol</button>
                         <button id="mode-instrument" onclick="setOrderMode('instrument')">By Instrument ID</button>
@@ -158,6 +159,84 @@
                         <span id="order-result" class="order-result"></span>
                     </div>
                 </form>
+            </div>
+
+            <div id="crypto-tab" class="tab-content">
+                <div class="card-header">
+                    <h2>Crypto (Exchange1)</h2>
+                    <span class="hint">Same signal shape as India orders — the bridge detects crypto pairs and routes to Exchange1.</span>
+                </div>
+                <form id="crypto-form" onsubmit="submitCryptoOrder(event)">
+                    <div class="form-grid">
+                        <div class="field">
+                            <label>Pair / Symbol</label>
+                            <input type="text" id="c-symbol" placeholder="e.g. BTCUSDT, ETH/USDT, SOL-USDT" required>
+                            <span class="hint">Detected as crypto automatically (no assetClass field needed).</span>
+                        </div>
+                        <div class="field">
+                            <label>Action</label>
+                            <select id="c-action">
+                                <option value="BUY">BUY (open long)</option>
+                                <option value="SELL">SELL (square-off only)</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Position</label>
+                            <select id="c-position">
+                                <option value="long">long</option>
+                                <option value="flat">flat (square-off)</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Quantity</label>
+                            <input type="number" id="c-quantity" placeholder="e.g. 0.01" step="any" min="0" required>
+                        </div>
+                        <div class="field">
+                            <label>Order Type</label>
+                            <select id="c-ordertype" onchange="toggleCryptoLimit()">
+                                <option value="LIMIT">LIMIT</option>
+                                <option value="MARKET">MARKET</option>
+                            </select>
+                        </div>
+                        <div class="field" id="field-crypto-limit">
+                            <label>Limit Price</label>
+                            <input type="number" step="any" id="c-limit" placeholder="Required for LIMIT">
+                        </div>
+                        <div class="field">
+                            <label>Product</label>
+                            <select id="c-product">
+                                <option value="SPOT">SPOT</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn" id="crypto-submit">Submit Crypto Order</button>
+                        <button type="button" class="btn ghost" onclick="resetCryptoForm()">Reset</button>
+                        <span id="crypto-result" class="order-result"></span>
+                    </div>
+                </form>
+                <div class="card-header" style="margin-top:22px;">
+                    <h2>Crypto Positions</h2>
+                    <button class="refresh-btn" onclick="fetchPositions()">Refresh</button>
+                </div>
+                <div class="table-wrap">
+                    <table id="crypto-positions-table">
+                        <thead>
+                            <tr>
+                                <th>Pair</th>
+                                <th>Exchange</th>
+                                <th>Side</th>
+                                <th class="num">Qty</th>
+                                <th class="num">Entry</th>
+                                <th>Status</th>
+                                <th>Opened</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="crypto-positions-body"></tbody>
+                    </table>
+                </div>
+                <div id="crypto-positions-empty" class="no-data">No open crypto positions</div>
             </div>
 
             <div id="alerts-tab" class="tab-content">

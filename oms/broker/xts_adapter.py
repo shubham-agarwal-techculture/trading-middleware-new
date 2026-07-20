@@ -270,6 +270,7 @@ class XTSBrokerAdapter(AbstractBrokerAdapter):
         limit_price: float = 0.0,
         stop_price: float = 0.0,
         order_unique_identifier: str = "",
+        instrument_name: str = "",
     ) -> Dict[str, Any]:
         await self._order_limiter.acquire()
         client = await self._get_client()

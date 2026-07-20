@@ -45,3 +45,30 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2026-07-20 10:32:19 | INFO     | [QUEUED]   oms_id=9fa9272093e14f68a8 | signal_id=f428d10150d945af90515f7d68e2b878 | GOLDM29JUL2026149000CE | side=BUY | qty=2 | type=LIMIT
 2026-07-20 10:32:20 | ERROR    | [OMS_ERROR] oms_id=9fa9272093e14f68a8 | code=BROKER_ERROR | Token/Authorization not found
 2026-07-20 10:32:20 | ERROR    | [ERROR]    oms_id=9fa9272093e14f68a8 | GOLDM29JUL2026149000CE | BROKER_ERROR | Token/Authorization not found
+2026-07-20 11:25:27 | INFO     | [QUEUED]   oms_id=2e5846db90f54d6ab6 | signal_id=3bafd23acdfc4ffea6ba5e8c68bd6017 | GOLDM29JUL2026149000CE | side=BUY | qty=2 | type=LIMIT
+2026-07-20 11:25:28 | ERROR    | [OMS_ERROR] oms_id=2e5846db90f54d6ab6 | code=BROKER_ERROR | Algo details not found for segment MCXFO
+2026-07-20 11:25:28 | ERROR    | [ERROR]    oms_id=2e5846db90f54d6ab6 | GOLDM29JUL2026149000CE | BROKER_ERROR | Algo details not found for segment MCXFO
+2026-07-20 11:32:20 | INFO     | [QUEUED]   oms_id=e809b768d39b4b7bb3 | signal_id=ddf9ed2e5b954fc6b5986fbf51d11ecd | BTC/USDT | side=BUY | qty=0 | type=LIMIT
+2026-07-20 11:32:21 | ERROR    | [OMS_ERROR] oms_id=e809b768d39b4b7bb3 | code=BROKER_ERROR | Bad Request
+2026-07-20 11:32:21 | ERROR    | [ERROR]    oms_id=e809b768d39b4b7bb3 | BTC/USDT | BROKER_ERROR | Bad Request
+2026-07-20 11:38:55 | INFO     | [QUEUED]   oms_id=99ccb3e5843e416981 | signal_id=307282c3585344ef9e9f226b7d7c027c | BTC/USDT | side=BUY | qty=0 | type=LIMIT
+2026-07-20 11:38:57 | ERROR    | [OMS_ERROR] oms_id=99ccb3e5843e416981 | code=BROKER_ERROR | Bad Request
+2026-07-20 11:38:57 | ERROR    | [ERROR]    oms_id=99ccb3e5843e416981 | BTC/USDT | BROKER_ERROR | Bad Request
+2026-07-20 11:44:30 | INFO     | [QUEUED]   oms_id=fd38d764e95e49aaad | signal_id=da027902b6c648949aa3827d80712610 | BTC/USDT | side=BUY | qty=0 | type=LIMIT
+2026-07-20 11:44:31 | ERROR    | [OMS_ERROR] oms_id=fd38d764e95e49aaad | code=BROKER_ERROR | BrokerRouter._pick() got multiple values for argument 'exchange_segment'
+2026-07-20 11:44:31 | ERROR    | [ERROR]    oms_id=fd38d764e95e49aaad | BTC/USDT | BROKER_ERROR | BrokerRouter._pick() got multiple values for argument 'exchange_segment'
+2026-07-20 11:49:53 | INFO     | [QUEUED]   oms_id=223a3aaa4b9f435fac | signal_id=86869133a41742dc846c812ef23e66f3 | GOLDM29JUL2026149000CE | side=BUY | qty=2 | type=LIMIT
+2026-07-20 11:49:54 | ERROR    | [OMS_ERROR] oms_id=223a3aaa4b9f435fac | code=BROKER_ERROR | BrokerRouter._pick() got multiple values for argument 'exchange_segment'
+2026-07-20 11:49:54 | ERROR    | [ERROR]    oms_id=223a3aaa4b9f435fac | GOLDM29JUL2026149000CE | BROKER_ERROR | BrokerRouter._pick() got multiple values for argument 'exchange_segment'
+2026-07-20 11:53:49 | INFO     | [QUEUED]   oms_id=9275d9254b154f5b98 | signal_id=27aaac8c5bf841ec981e175e5805ce8c | NIFTY2672124950CE | side=BUY | qty=65 | type=LIMIT
+2026-07-20 11:53:50 | ERROR    | [OMS_ERROR] oms_id=9275d9254b154f5b98 | code=BROKER_ERROR | BrokerRouter._pick() got multiple values for argument 'exchange_segment'
+2026-07-20 11:53:50 | ERROR    | [ERROR]    oms_id=9275d9254b154f5b98 | NIFTY2672124950CE | BROKER_ERROR | BrokerRouter._pick() got multiple values for argument 'exchange_segment'
+2026-07-20 11:56:12 | INFO     | [QUEUED]   oms_id=0da5ec2226a448e8bf | signal_id=ce0833ff5f1d44709a6ac69e75eb6914 | SENSEX2672379000CE | side=BUY | qty=65 | type=LIMIT
+2026-07-20 11:56:13 | ERROR    | [OMS_ERROR] oms_id=0da5ec2226a448e8bf | code=BROKER_ERROR | BrokerRouter._pick() got multiple values for argument 'exchange_segment'
+2026-07-20 11:56:13 | ERROR    | [ERROR]    oms_id=0da5ec2226a448e8bf | SENSEX2672379000CE | BROKER_ERROR | BrokerRouter._pick() got multiple values for argument 'exchange_segment'
+2026-07-20 11:59:49 | INFO     | [QUEUED]   oms_id=8cacfec230e849ac95 | signal_id=1ae6064fef1042bcbcad250b30ee6ed2 | SENSEX2672379000CE | side=BUY | qty=65 | type=LIMIT
+2026-07-20 11:59:49 | INFO     | [ACK]      oms_id=8cacfec230e849ac95 | broker_id=1110034356 | SENSEX2672379000CE | side=BUY | qty=65
+2026-07-20 12:00:00 | WARNING  | [REJECTED]  oms_id=8cacfec230e849ac95 | SENSEX2672379000CE | reason=Gateway:Supplied Quantity is not in multiple of LotSize.
+2026-07-20 12:00:19 | INFO     | [QUEUED]   oms_id=6425a0f9663146a08e | signal_id=2d7b6de1249b459dbb98d5e065703261 | NIFTY2672124950CE | side=BUY | qty=65 | type=LIMIT
+2026-07-20 12:00:19 | INFO     | [ACK]      oms_id=6425a0f9663146a08e | broker_id=1110032469 | NIFTY2672124950CE | side=BUY | qty=65
+2026-07-20 12:00:30 | WARNING  | [REJECTED]  oms_id=6425a0f9663146a08e | NIFTY2672124950CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [48.88] in form of Cash. TotalRequired Cash : 48.875, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]

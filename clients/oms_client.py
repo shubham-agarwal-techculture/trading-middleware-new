@@ -269,11 +269,12 @@ class OMSClient:
         original_cb = self._response_callback
 
         async def _watch(resp: Dict[str, Any]) -> None:
-            if (
-                resp.get("signal_id") == signal_id
-                and resp.get("msg_type") == "ORDER_ACK"
-                and not fut.done()
-            ):
+            if resp.get("signal_id") != signal_id or fut.done():
+                if original_cb:
+                    await original_cb(resp)
+                return
+            msg_type = resp.get("msg_type", "")
+            if msg_type in ("ORDER_ACK", "ORDER_ERROR", "ORDER_REJECTED"):
                 fut.set_result(resp)
             if original_cb:
                 await original_cb(resp)

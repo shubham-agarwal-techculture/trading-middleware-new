@@ -11,7 +11,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 
@@ -45,6 +45,8 @@ class BrokerConfig:
     verify_ssl: bool = True
     socket_enabled: bool = True
     socket_reconnect: bool = True
+    # Used when this config is the optional crypto_broker section
+    enabled: bool = True
 
 
 @dataclass
@@ -63,6 +65,7 @@ class LogConfig:
     log_dir: str = "./logs"
     log_file: str = "oms_{datetime}.log"
     xts_log_file: str = "xts_{datetime}.log"
+    exchange1_log_file: str = "exchange1_{datetime}.log"
     rotation_size_mb: int = 50
     backup_count: int = 7
 
@@ -71,6 +74,7 @@ class LogConfig:
 class AppConfig:
     oms: OMSConfig = field(default_factory=OMSConfig)
     broker: BrokerConfig = field(default_factory=BrokerConfig)
+    crypto_broker: Optional[BrokerConfig] = None
     storage: StorageConfig = field(default_factory=StorageConfig)
     logging: LogConfig = field(default_factory=LogConfig)
 
@@ -109,6 +113,10 @@ def load_config(config_path: str = "config.yaml") -> AppConfig:
         cfg.oms = OMSConfig(**data["oms"])
     if "broker" in data:
         cfg.broker = BrokerConfig(**data["broker"])
+    if "crypto_broker" in data and data["crypto_broker"]:
+        crypto_data = dict(data["crypto_broker"])
+        crypto_data.setdefault("type", "exchange1")
+        cfg.crypto_broker = BrokerConfig(**crypto_data)
     if "storage" in data:
         cfg.storage = StorageConfig(**data["storage"])
     if "logging" in data:

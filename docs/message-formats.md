@@ -28,6 +28,30 @@ requires a truthy `quantity`. Optional fields include:
 The webhook normalizes action, quantity, order type, product type, and
 timestamps before forwarding.
 
+### Crypto examples (eXchange1)
+
+Same schema as India — no `assetClass` field. The bridge routes pairs like
+`BTCUSDT` / `ETH/USDT` to Exchange1. Sample files live under
+[`examples/`](../examples/):
+
+```json
+{
+  "action": "BUY",
+  "position": "long",
+  "quantity": 0.01,
+  "symbol": "BTCUSDT",
+  "orderType": "LIMIT",
+  "limitPrice": 65000,
+  "productType": "SPOT"
+}
+```
+
+```bash
+curl -X POST http://localhost:5001/signal \
+  -H "Content-Type: application/json" \
+  -d @examples/crypto_buy_limit.json
+```
+
 ### Correlation
 
 Every accepted order is associated with a `signal_id`. Preserve it across

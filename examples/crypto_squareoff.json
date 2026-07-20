@@ -1,0 +1,8 @@
+{
+  "action": "SELL",
+  "position": "flat",
+  "quantity": 0.01,
+  "symbol": "BTCUSDT",
+  "orderType": "MARKET",
+  "productType": "SPOT"
+}

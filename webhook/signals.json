@@ -908,5 +908,149 @@
     "productType": "MIS",
     "timestamp": 1784523739695,
     "receivedAt": "2026-07-20T05:02:19.695Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 2,
+    "symbol": "GOLDM260729C149000",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784526927304,
+    "receivedAt": "2026-07-20T05:55:27.304Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 0.01,
+    "symbol": "BTCUSDT",
+    "orderType": "LIMIT",
+    "limitPrice": 65000,
+    "productType": "SPOT",
+    "timestamp": 1784527340675,
+    "receivedAt": "2026-07-20T06:02:20.675Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 0.01,
+    "symbol": "BTCUSDT",
+    "orderType": "LIMIT",
+    "limitPrice": 65000,
+    "productType": "SPOT",
+    "timestamp": 1784527735962,
+    "receivedAt": "2026-07-20T06:08:55.962Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 0.01,
+    "symbol": "BTCUSDT",
+    "orderType": "LIMIT",
+    "limitPrice": 65000,
+    "productType": "SPOT",
+    "timestamp": 1784528070181,
+    "receivedAt": "2026-07-20T06:14:30.181Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 2,
+    "symbol": "GOLDM260729C149000",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784528392742,
+    "receivedAt": "2026-07-20T06:19:52.742Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260721C24950",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784528629508,
+    "receivedAt": "2026-07-20T06:23:49.508Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "BSX260723C79000",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784528772268,
+    "receivedAt": "2026-07-20T06:26:12.268Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "BSX260723C79000",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784528988760,
+    "receivedAt": "2026-07-20T06:29:48.760Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260721C24950",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784529019183,
+    "receivedAt": "2026-07-20T06:30:19.183Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260721C24950",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784529374610,
+    "receivedAt": "2026-07-20T06:36:14.610Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "BSX260723C79000",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784529412871,
+    "receivedAt": "2026-07-20T06:36:52.871Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 25,
+    "symbol": "BSX260723C79000",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784529462407,
+    "receivedAt": "2026-07-20T06:37:42.407Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 20,
+    "symbol": "BSX260723C79000",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784529490059,
+    "receivedAt": "2026-07-20T06:38:10.059Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 0.01,
+    "symbol": "BTCUSDT",
+    "orderType": "LIMIT",
+    "limitPrice": 65000,
+    "productType": "SPOT",
+    "timestamp": 1784529517513,
+    "receivedAt": "2026-07-20T06:38:37.513Z"
   }
 ]

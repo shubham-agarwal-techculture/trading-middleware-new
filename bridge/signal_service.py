@@ -15,6 +15,12 @@ from typing import Any, Dict
 from market_data import get_atm_data
 
 from bridge import state
+from bridge.asset_class import (
+    CRYPTO_SEGMENT,
+    classify_signal,
+    crypto_instrument_id,
+    normalize_crypto_symbol,
+)
 from bridge.market_data import get_ltp_for_contract
 from bridge.positions import (
     append_to_history,
@@ -26,6 +32,54 @@ from bridge.resolution import find_contract_by_instrument_id, resolve_contract_b
 
 log = logging.getLogger("NIFTY_BRIDGE")
 
+_FAILURE_MSG_TYPES = frozenset({
+    "ORDER_ERROR",
+    "ORDER_REJECTED",
+    "ORDER_EXPIRED",
+    "ORDER_CANCELLED",
+})
+_FAILURE_STATUSES = frozenset({"REJECTED", "ERROR", "EXPIRED", "CANCELLED"})
+
+
+def _order_failure_reason(resp: Dict[str, Any]) -> str:
+    """Best available human-readable failure reason from an OMS response."""
+    for key in ("error_message", "reject_reason", "message"):
+        val = resp.get(key)
+        if val:
+            return str(val)
+    code = resp.get("error_code")
+    if code:
+        return str(code)
+    status = resp.get("status")
+    if status:
+        return str(status)
+    return "unknown"
+
+
+def _is_order_failure(resp: Dict[str, Any]) -> bool:
+    msg_type = str(resp.get("msg_type", "")).upper()
+    status = str(resp.get("status", "")).upper()
+    if msg_type in _FAILURE_MSG_TYPES:
+        return True
+    if isinstance(resp.get("status"), str) and status in _FAILURE_STATUSES:
+        return True
+    return False
+
+
+def _error_response(message: str, **extra: Any) -> Dict[str, Any]:
+    log.warning("Signal rejected: %s", message)
+    return {"status": "error", "message": message, **extra}
+
+
+def _mark_pending_failure(signal_id: str, resp: Dict[str, Any]) -> None:
+    if signal_id not in state.pending_orders:
+        return
+    reason = _order_failure_reason(resp)
+    state.pending_orders[signal_id]["status"] = "failed"
+    state.pending_orders[signal_id]["failure_reason"] = reason
+    state.pending_orders[signal_id]["error_code"] = resp.get("error_code")
+    state.pending_orders[signal_id]["response"] = resp
+
 
 async def process_order_status(signal_id: str, contract: Dict[str, Any], quantity: int):
     """Background task to monitor order status and update position book."""
@@ -36,10 +90,20 @@ async def process_order_status(signal_id: str, contract: Dict[str, Any], quantit
         ack = await state.client.wait_for_ack(signal_id, timeout=30.0)
 
         if ack:
-            status = ack.get("status", "").upper()
-            log.info("Order ack received for %s: %s", signal_id, status)
+            msg_type = str(ack.get("msg_type", "")).upper()
+            status = str(ack.get("status", "")).upper()
+            log.info("Order ack received for %s: msg_type=%s status=%s", signal_id, msg_type, status)
 
-            if status not in ["REJECTED", "CANCELLED", "EXPIRED", "ERROR"]:
+            if msg_type == "ORDER_ERROR" or status == "ERROR" or _is_order_failure(ack):
+                reason = _order_failure_reason(ack)
+                log.error(
+                    "Order failed | signal_id=%s instrument=%s reason=%s",
+                    signal_id,
+                    contract.get("instrument_name"),
+                    reason,
+                )
+                _mark_pending_failure(signal_id, ack)
+            elif status not in _FAILURE_STATUSES:
                 positions = load_positions()
                 positions[instrument_key] = {
                     "side": "BUY",
@@ -47,6 +111,7 @@ async def process_order_status(signal_id: str, contract: Dict[str, Any], quantit
                     "instrument": contract["instrument_name"],
                     "exchange_instrument_id": contract["exchange_instrument_id"],
                     "exchange_segment": contract.get("exchange_segment", "NSEFO"),
+                    "asset_class": contract.get("asset_class", "india"),
                     "opened_at": get_ist_now(),
                     "signal_id": signal_id,
                     "oms_order_id": ack.get("oms_order_id"),
@@ -62,14 +127,14 @@ async def process_order_status(signal_id: str, contract: Dict[str, Any], quantit
                     state.pending_orders[signal_id]["status"] = "acknowledged"
                     state.pending_orders[signal_id]["response"] = ack
             else:
+                reason = _order_failure_reason(ack)
                 log.warning(
-                    "Order failed at ack with status: %s for signal_id: %s",
-                    status,
+                    "Order failed at ack | signal_id=%s status=%s reason=%s",
                     signal_id,
+                    status,
+                    reason,
                 )
-                if signal_id in state.pending_orders:
-                    state.pending_orders[signal_id]["status"] = "failed"
-                    state.pending_orders[signal_id]["response"] = ack
+                _mark_pending_failure(signal_id, ack)
         else:
             log.warning("Timeout waiting for ORDER_ACK for signal_id: %s", signal_id)
             if signal_id in state.pending_orders:
@@ -98,10 +163,11 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
         )
 
         if not action or not position:
-            return {
-                "status": "error",
-                "message": "Missing required fields: action, position",
-            }
+            return _error_response("Missing required fields: action, position")
+
+        # Unchanged payload: infer crypto vs India and route accordingly.
+        if classify_signal(signal) == "crypto":
+            return await _handle_crypto_signal(signal, action, position, quantity)
 
         def _safe_int(value, default=0):
             try:
@@ -164,22 +230,16 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
                     }
                 )
                 if limit_price is None:
-                    return {
-                        "status": "error",
-                        "message": (
-                            "Could not fetch LTP for instrument "
-                            f"{contract['exchange_instrument_id']} on {contract['exchange_segment']}"
-                        ),
-                    }
+                    return _error_response(
+                        "Could not fetch LTP for instrument "
+                        f"{contract['exchange_instrument_id']} on {contract['exchange_segment']}"
+                    )
         elif ticker:
             contract_data = await resolve_contract_by_ticker(
                 ticker, segment_hint=explicit_segment
             )
             if not contract_data:
-                return {
-                    "status": "error",
-                    "message": f"Contract not found for ticker: {ticker}",
-                }
+                return _error_response(f"Contract not found for ticker: {ticker}")
 
             log.info(
                 "Resolved ticker contract: %s @ %s",
@@ -189,10 +249,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
 
             fetched_ltp = await get_ltp_for_contract(contract_data)
             if fetched_ltp is None:
-                return {
-                    "status": "error",
-                    "message": f"Could not fetch LTP for ticker contract: {ticker}",
-                }
+                return _error_response(f"Could not fetch LTP for ticker contract: {ticker}")
 
             if signal.get("limitPrice") or signal.get("limit_price"):
                 limit_price = float(
@@ -212,10 +269,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
                     )
                 except Exception as e:
                     log.exception("ATM data fetch failed")
-                    return {
-                        "status": "error",
-                        "message": f"Could not fetch ATM data: {e}",
-                    }
+                    return _error_response(f"Could not fetch ATM data: {e}")
 
             if option_type == "CE":
                 contract_data = state.atm_data["ce_contract"]
@@ -224,10 +278,7 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
                 contract_data = state.atm_data["pe_contract"]
                 limit_price = state.atm_data["pe_ltp"]
             else:
-                return {
-                    "status": "error",
-                    "message": "Invalid optionType, must be CE or PE",
-                }
+                return _error_response("Invalid optionType, must be CE or PE")
 
             contract = {
                 "exchange_segment": contract_data["ExchangeSegment"],
@@ -343,11 +394,133 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
                 "strike": contract.get("strike"),
             }
 
-        return {"status": "error", "message": f"Unsupported action: {action}"}
+        return _error_response(f"Unsupported action: {action}")
 
     except Exception as e:
         log.exception("Error handling signal:")
-        return {"status": "error", "message": str(e)}
+        return _error_response(str(e))
+
+
+async def _handle_crypto_signal(
+    signal: Dict[str, Any],
+    action: str,
+    position: str,
+    quantity: Any,
+) -> Dict[str, Any]:
+    """Route crypto symbols to Exchange1 via OMS segment ``CRYPTO``."""
+    raw_symbol = signal.get("ticker") or signal.get("symbol") or ""
+    if not raw_symbol:
+        return _error_response("Crypto signal requires symbol/ticker (e.g. BTCUSDT)")
+
+    symbol = normalize_crypto_symbol(str(raw_symbol))
+    instrument_id = crypto_instrument_id(symbol)
+
+    try:
+        qty = float(quantity) if quantity is not None else 0.0
+    except (TypeError, ValueError):
+        qty = 0.0
+    if qty <= 0:
+        return _error_response("Crypto quantity must be a positive number")
+
+    product_type = (
+        signal.get("productType") or signal.get("product_type") or "SPOT"
+    ).upper()
+    order_type = (
+        signal.get("orderType") or signal.get("order_type") or "LIMIT"
+    ).upper()
+    limit_price = float(
+        signal.get("limitPrice") or signal.get("limit_price") or 0.0
+    )
+    stop_price = float(signal.get("stopPrice") or signal.get("stop_price") or 0.0)
+
+    if order_type == "LIMIT" and limit_price <= 0:
+        return _error_response("Crypto LIMIT orders require limitPrice")
+
+    contract = {
+        "exchange_segment": CRYPTO_SEGMENT,
+        "exchange_instrument_id": instrument_id,
+        "instrument_name": symbol,
+        "lot_size": qty,
+        "strike": 0,
+        "option_type": "",
+        "asset_class": "crypto",
+    }
+    instrument_key = str(instrument_id)
+    positions = load_positions()
+    current_position = positions.get(instrument_key)
+    is_valid_position = False
+    if current_position:
+        status = current_position.get("status", "")
+        is_valid_position = status not in [
+            "REJECTED",
+            "CANCELLED",
+            "EXPIRED",
+            "ERROR",
+        ]
+
+    log.info(
+        "Crypto signal: Action=%s Position=%s Qty=%s Symbol=%s → Exchange1",
+        action,
+        position,
+        qty,
+        symbol,
+    )
+
+    if action == "SELL" or position == "flat":
+        return await _squareoff_existing(
+            contract, current_position, is_valid_position, product_type, instrument_key
+        )
+
+    if action != "BUY":
+        return {"status": "error", "message": f"Unsupported crypto action: {action}"}
+
+    if is_valid_position:
+        return {
+            "status": "ignored",
+            "message": f"Position already exists for {symbol}",
+        }
+
+    sig_id = uuid.uuid4().hex
+    state.pending_orders[sig_id] = {
+        "status": "pending",
+        "instrument": symbol,
+        "timestamp": get_ist_now(),
+        "limit_price": limit_price,
+        "asset_class": "crypto",
+    }
+
+    signal_id = await state.client.place_order(
+        exchange_segment=CRYPTO_SEGMENT,
+        exchange_instrument_id=instrument_id,
+        instrument_name=symbol,
+        product_type=product_type if product_type not in ("MIS", "NRML", "CNC") else "SPOT",
+        order_type=order_type,
+        order_side=action,
+        time_in_force="DAY",
+        order_quantity=qty,
+        limit_price=limit_price,
+        stop_price=stop_price,
+        tags={"asset_class": "crypto", "symbol": symbol},
+        signal_id=sig_id,
+    )
+    log.info("Crypto order signal sent | signal_id=%s symbol=%s", signal_id, symbol)
+    asyncio.create_task(process_order_status(sig_id, contract, qty))
+
+    return {
+        "status": "pending",
+        "signal_id": sig_id,
+        "message": "Crypto order submitted to Exchange1 via OMS",
+        "instrument": symbol,
+        "exchange_segment": CRYPTO_SEGMENT,
+        "exchange_instrument_id": instrument_id,
+        "quantity": qty,
+        "limit_price": limit_price,
+        "order_type": order_type,
+        "product_type": product_type,
+        "order_side": action,
+        "position": position,
+        "asset_class": "crypto",
+    }
 
 
 async def _squareoff_existing(
@@ -390,6 +563,28 @@ async def _squareoff_existing(
     ack = await state.client.wait_for_ack(sig_id, timeout=10.0)
 
     if ack:
+        if _is_order_failure(ack):
+            reason = _order_failure_reason(ack)
+            log.error(
+                "Square-off failed | signal_id=%s instrument=%s reason=%s",
+                sig_id,
+                contract["instrument_name"],
+                reason,
+            )
+            return {
+                "status": "squareoff_failed",
+                "message": reason,
+                "signal_id": sig_id,
+                "instrument": contract["instrument_name"],
+                "exchange_segment": contract["exchange_segment"],
+                "exchange_instrument_id": contract["exchange_instrument_id"],
+                "quantity": pos_qty,
+                "order_side": reverse_side,
+                "order_type": "MARKET",
+                "product_type": product_type,
+                "failure_reason": reason,
+            }
+
         log.info("Square-off order submitted for: %s", contract["instrument_name"])
         return {
             "status": "submitted",
@@ -409,7 +604,7 @@ async def _squareoff_existing(
     log.warning("Squareoff failed or not confirmed for signal_id=%s", sig_id)
     return {
         "status": "squareoff_failed",
-        "message": "Squareoff sent but not confirmed",
+        "message": "Squareoff sent but not confirmed (timeout waiting for OMS)",
         "signal_id": sig_id,
         "instrument": contract["instrument_name"],
         "exchange_segment": contract.get("exchange_segment"),
@@ -431,13 +626,25 @@ async def on_oms_response(resp: Dict[str, Any]) -> None:
     if not status and msg_type.startswith("ORDER_"):
         status = msg_type.replace("ORDER_", "")
 
-    log.info(
-        "[OMS Update] type=%s, oms_id=%s, status=%s, signal_id=%s",
-        msg_type,
-        oms_id,
-        status,
-        signal_id,
-    )
+    if _is_order_failure(resp):
+        reason = _order_failure_reason(resp)
+        log.error(
+            "Order failed | signal_id=%s oms_id=%s msg_type=%s reason=%s",
+            signal_id,
+            oms_id,
+            msg_type,
+            reason,
+        )
+        if signal_id:
+            _mark_pending_failure(signal_id, resp)
+    else:
+        log.info(
+            "[OMS Update] type=%s, oms_id=%s, status=%s, signal_id=%s",
+            msg_type,
+            oms_id,
+            status,
+            signal_id,
+        )
 
     if signal_id and signal_id in state.pending_orders:
         state.pending_orders[signal_id]["last_update"] = {
@@ -446,6 +653,10 @@ async def on_oms_response(resp: Dict[str, Any]) -> None:
             "oms_order_id": oms_id,
             "timestamp": get_ist_now(),
         }
+        if _is_order_failure(resp):
+            state.pending_orders[signal_id]["last_update"]["failure_reason"] = (
+                _order_failure_reason(resp)
+            )
 
     try:
         positions = load_positions()
@@ -476,9 +687,12 @@ async def on_oms_response(resp: Dict[str, Any]) -> None:
                 elif status in ["REJECTED", "CANCELLED", "ERROR", "EXPIRED"]:
                     pos.pop("squareoff_signal_id", None)
                     updated = True
+                    reason = _order_failure_reason(resp)
                     log.warning(
-                        "Square-off order failed/cancelled for %s. Unlinked squareoff_signal_id.",
+                        "Square-off order failed for %s | status=%s reason=%s",
                         pos.get("instrument"),
+                        status,
+                        reason,
                     )
 
         if updated:

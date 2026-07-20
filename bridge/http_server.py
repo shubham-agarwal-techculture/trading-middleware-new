@@ -23,6 +23,7 @@ from typing import Any, Optional
 from urllib.parse import parse_qs, urlparse
 
 from bridge import state
+from bridge.asset_class import classify_signal
 from bridge.market_data import enrich_positions_for_display
 from bridge.positions import (
     add_alert,
@@ -179,6 +180,7 @@ class BridgeHTTPRequestHandler(BaseHTTPRequestHandler):
             "status": result.get("status"),
             "result_message": result.get("message"),
             "msg_type": result.get("msg_type"),
+            "asset_class": result.get("asset_class") or classify_signal(signal),
         }
         # Drop empty keys for cleaner UI / storage
         order = {k: v for k, v in order.items() if v is not None and v != ""}

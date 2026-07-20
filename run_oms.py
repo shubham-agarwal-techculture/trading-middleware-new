@@ -45,7 +45,7 @@ from oms.config import load_config
 from oms.core.order_manager import OrderManager
 from oms.core.position_tracker import PositionTracker
 from oms.storage.file_store import FileStore
-from oms.utils.logger import setup_logging, get_logger, get_xts_logger
+from oms.utils.logger import setup_logging, get_logger, get_xts_logger, get_exchange1_logger
 
 
 async def main(config_path: str = "config.yaml") -> None:
@@ -64,6 +64,11 @@ async def main(config_path: str = "config.yaml") -> None:
         cfg.logging.xts_log_file,
         session_datetime=session_dt,
     )
+    _, ex1_log_path = get_exchange1_logger(
+        cfg.logging.log_dir,
+        cfg.logging.exchange1_log_file,
+        session_datetime=session_dt,
+    )
     log = get_logger("run_oms")
 
     log.info("=== Order Management System Starting ===", version="1.0.0")
@@ -71,6 +76,7 @@ async def main(config_path: str = "config.yaml") -> None:
         "Session log files",
         oms_log=str(oms_log_path),
         xts_log=str(xts_log_path),
+        exchange1_log=str(ex1_log_path),
         session_datetime=session_dt,
     )
     log.info("Configuration loaded", config_path=config_path)
@@ -82,8 +88,20 @@ async def main(config_path: str = "config.yaml") -> None:
     position_tracker = PositionTracker(file_store)
     await position_tracker.load()
 
-    # --- Broker (selected by cfg.broker.type via the factory) ---
-    broker = create_broker(cfg.broker)
+    # --- Broker (XTS + optional Exchange1 crypto via router) ---
+    broker = create_broker(cfg.broker, cfg.crypto_broker)
+    if cfg.crypto_broker and getattr(cfg.crypto_broker, "enabled", True):
+        log.info(
+            "Broker routing enabled",
+            primary=cfg.broker.type,
+            crypto=getattr(cfg.crypto_broker, "type", "exchange1"),
+            crypto_segments=["CRYPTO", "EXCHANGE1", "SPOT"],
+        )
+    else:
+        log.warning(
+            "No crypto_broker in config — CRYPTO segment orders will be sent to XTS and fail. "
+            "Add crypto_broker + EXCHANGE1_* env vars (see .env.example)."
+        )
     try:
         await broker.login()
     except Exception as exc:
@@ -100,10 +118,11 @@ async def main(config_path: str = "config.yaml") -> None:
 
     # --- XTS Interactive Socket.IO (real-time order/trade events) ---
     xts_socket = None
-    if cfg.broker.socket_enabled and broker.token:
+    xts_adapter = getattr(broker, "xts", broker)
+    if cfg.broker.socket_enabled and getattr(xts_adapter, "token", None):
         try:
             xts_socket = attach_xts_socket(
-                broker,
+                xts_adapter,
                 order_manager,
                 verify_ssl=cfg.broker.verify_ssl,
                 reconnect=cfg.broker.socket_reconnect,

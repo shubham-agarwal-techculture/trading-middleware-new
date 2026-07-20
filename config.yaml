@@ -26,6 +26,15 @@ broker:
   socket_enabled: true          # XTS Socket.IO for instant fill/status updates
   socket_reconnect: true
 
+# Without this section, CRYPTO segment orders are sent to XTS and fail.
+crypto_broker:
+  enabled: true
+  type: exchange1
+  url: "${EXCHANGE1_URL}"
+  app_key: "${EXCHANGE1_API_KEY}"
+  secret_key: "${EXCHANGE1_API_SECRET}"
+  verify_ssl: true
+
 storage:
   data_dir: "./data"
   orders_log_file: "orders_log_{date}.csv"   # Append-only order event log
@@ -39,5 +48,6 @@ logging:
   log_dir: "./logs"
   log_file: "oms_{datetime}.log"   # New file each OMS start, e.g. oms_20260520_120729.log
   xts_log_file: "xts_{datetime}.log"
+  exchange1_log_file: "exchange1_{datetime}.log"
   rotation_size_mb: 50
   backup_count: 7
