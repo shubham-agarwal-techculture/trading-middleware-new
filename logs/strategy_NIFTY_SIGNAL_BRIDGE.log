@@ -105,3 +105,20 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2026-07-20 12:36:27 | INFO     | [QUEUED]   oms_id=ff8fb973c35949dba3 | signal_id=613c63c12eee43e989de01e0115fa288 | BTC/USDT | side=BUY | qty=0 | type=LIMIT
 2026-07-20 12:36:29 | ERROR    | [OMS_ERROR] oms_id=ff8fb973c35949dba3 | code=BROKER_ERROR | Exchange1 HTTP 404: {'raw': '404 page not found\n'}
 2026-07-20 12:36:29 | ERROR    | [ERROR]    oms_id=ff8fb973c35949dba3 | BTC/USDT | BROKER_ERROR | Exchange1 HTTP 404: {'raw': '404 page not found\n'}
+2026-07-20 12:42:29 | INFO     | [QUEUED]   oms_id=9747d14c25d84937ba | signal_id=82f2dce19e624fb585f73d39aa11d2be | BTC/USDT | side=BUY | qty=0 | type=LIMIT
+2026-07-20 12:42:31 | ERROR    | [OMS_ERROR] oms_id=9747d14c25d84937ba | code=BROKER_ERROR | Crypto broker unavailable: Exchange1 connectivity check failed: HTTP 404 at https://openapi.exchange1.com/sapi/v1/time. Verify EXCHANGE1_URL is the OpenAPI base URL from your exchange (see exchange API docs; paths use /sapi/v1/...). Response: 404 page not found
+
+2026-07-20 12:42:31 | ERROR    | [ERROR]    oms_id=9747d14c25d84937ba | BTC/USDT | BROKER_ERROR | Crypto broker unavailable: Exchange1 connectivity check failed: HTTP 404 at https://openapi.exchange1.com/sapi/v1/time. Verify EXCHANGE1_URL is the OpenAPI base URL from your exchange (see exchange API docs; paths use /sapi/v1/...). Response: 404 page not found
+
+2026-07-20 12:45:11 | INFO     | [QUEUED]   oms_id=e8942ebbf0234bcd82 | signal_id=ea3d76e05cfc41f9b4cdf3998fe25438 | SENSEX2672379000CE | side=BUY | qty=20 | type=LIMIT
+2026-07-20 12:45:12 | ERROR    | [OMS_ERROR] oms_id=e8942ebbf0234bcd82 | code=BROKER_ERROR | Token/Authorization not found
+2026-07-20 12:45:12 | ERROR    | [ERROR]    oms_id=e8942ebbf0234bcd82 | SENSEX2672379000CE | BROKER_ERROR | Token/Authorization not found
+2026-07-20 12:46:37 | INFO     | [QUEUED]   oms_id=3f345987ef6f405f99 | signal_id=04a0032a92df4dc19a66297ffd75f143 | SENSEX2672379000CE | side=BUY | qty=20 | type=LIMIT
+2026-07-20 12:46:38 | ERROR    | [OMS_ERROR] oms_id=3f345987ef6f405f99 | code=BROKER_ERROR | Token/Authorization not found
+2026-07-20 12:46:38 | ERROR    | [ERROR]    oms_id=3f345987ef6f405f99 | SENSEX2672379000CE | BROKER_ERROR | Token/Authorization not found
+2026-07-20 12:47:43 | INFO     | [QUEUED]   oms_id=4c33c4954775428fa4 | signal_id=ca332ee752b24ac49239129787082d98 | SENSEX2672379000CE | side=BUY | qty=20 | type=LIMIT
+2026-07-20 12:47:43 | INFO     | [ACK]      oms_id=4c33c4954775428fa4 | broker_id=1110034362 | SENSEX2672379000CE | side=BUY | qty=20
+2026-07-20 12:47:49 | WARNING  | [REJECTED]  oms_id=4c33c4954775428fa4 | SENSEX2672379000CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [398.5] in form of Cash. TotalRequired Cash : 398.5, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-20 12:49:59 | INFO     | [QUEUED]   oms_id=52d7b5c84f8746e6a3 | signal_id=599e4b89a1824b96833b1cb3f35848b6 | NIFTY2672124950CE | side=BUY | qty=65 | type=LIMIT
+2026-07-20 12:49:59 | INFO     | [ACK]      oms_id=52d7b5c84f8746e6a3 | broker_id=1110032471 | NIFTY2672124950CE | side=BUY | qty=65
+2026-07-20 12:50:20 | WARNING  | [REJECTED]  oms_id=52d7b5c84f8746e6a3 | NIFTY2672124950CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [50.5] in form of Cash. TotalRequired Cash : 50.5, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]

@@ -5,6 +5,7 @@
  * them, and forwards to the Python bridge. Also serves the trading dashboard.
  */
 require('dotenv').config();
+const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const express = require('express');
@@ -13,6 +14,7 @@ const bridgeClient = require('./bridgeClient');
 
 const PORT_RETRY_COUNT = 20;
 const preferredPort = Number(process.env.SIGNAL_PORT || 5001);
+const RUNTIME_PORT_FILE = path.join(__dirname, '..', '.webhook_http_port');
 const bridgeHost = process.env.BRIDGE_HOST || '127.0.0.1';
 const preferredBridgePort = Number(
     process.env.BRIDGE_PORT || process.env.OMS_BRIDGE_PORT || 5002
@@ -25,6 +27,14 @@ function resolveBridgePort() {
 function bridgeApiBase() {
     if (process.env.BRIDGE_API_BASE) return process.env.BRIDGE_API_BASE;
     return `http://${bridgeHost}:${resolveBridgePort()}`;
+}
+
+function writeRuntimePort(port) {
+    try {
+        fs.writeFileSync(RUNTIME_PORT_FILE, String(port), 'utf8');
+    } catch (err) {
+        console.warn(`Could not write runtime port file ${RUNTIME_PORT_FILE}:`, err.message);
+    }
 }
 
 /**
@@ -96,6 +106,13 @@ receiver.on('signal', async (signal) => {
 
 (async () => {
     try {
+        try {
+            if (fs.existsSync(RUNTIME_PORT_FILE)) {
+                fs.unlinkSync(RUNTIME_PORT_FILE);
+            }
+        } catch {
+            // Non-fatal; write after bind will overwrite anyway.
+        }
         const port = await listenWithFallback(server, preferredPort);
         receiver.port = port;
         if (port !== preferredPort) {
@@ -103,6 +120,7 @@ receiver.on('signal', async (signal) => {
                 `SIGNAL_PORT ${preferredPort} is in use; auto-selected port ${port} instead`
             );
         }
+        writeRuntimePort(port);
         console.log(`Webhook service and dashboard running on port ${port}`);
         console.log(`Dashboard: http://localhost:${port}`);
         console.log(`Bridge target: ${bridgeApiBase()}`);

@@ -10,7 +10,7 @@ Start components in this order:
 1. OMS: `python run_oms.py`
 2. Bridge: `python run_bridge.py --port 5002`
 3. Webhook/dashboard: `cd webhook && npm start`
-4. Optional public ingress: `ngrok http 5001`
+4. Optional public ingress: `scripts\ngrok_tunnel.bat 5001` (kills stale ngrok, then starts fresh)
 
 `script.bat` opens these processes in Windows Terminal. It also downloads
 master data concurrently with bridge startup, so a cold start can race if
