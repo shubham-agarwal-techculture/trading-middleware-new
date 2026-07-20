@@ -87,3 +87,12 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2026-07-20 12:08:37 | INFO     | [QUEUED]   oms_id=a64a7740ce6148fea2 | signal_id=8590a6648add43a3b4ee24445e35bcfb | BTC/USDT | side=BUY | qty=0 | type=LIMIT
 2026-07-20 12:08:38 | ERROR    | [OMS_ERROR] oms_id=a64a7740ce6148fea2 | code=BROKER_ERROR | Crypto broker unavailable: Exchange1 API key/secret not configured (crypto_broker.app_key / secret_key)
 2026-07-20 12:08:38 | ERROR    | [ERROR]    oms_id=a64a7740ce6148fea2 | BTC/USDT | BROKER_ERROR | Crypto broker unavailable: Exchange1 API key/secret not configured (crypto_broker.app_key / secret_key)
+2026-07-20 12:18:58 | INFO     | [QUEUED]   oms_id=c1af8bb749384a5c92 | signal_id=411a081697a646bb96a31358a59e2ba5 | SENSEX2672379000CE | side=BUY | qty=20 | type=LIMIT
+2026-07-20 12:18:59 | INFO     | [ACK]      oms_id=c1af8bb749384a5c92 | broker_id=1110034360 | SENSEX2672379000CE | side=BUY | qty=20
+2026-07-20 12:19:25 | WARNING  | [REJECTED]  oms_id=c1af8bb749384a5c92 | SENSEX2672379000CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [462] in form of Cash. TotalRequired Cash : 462, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-20 12:23:08 | INFO     | [QUEUED]   oms_id=9843ee6d434d4600a8 | signal_id=d8bb0cff6a264c5e8142ff8f19c0dae0 | SENSEX2672379000CE | side=BUY | qty=20 | type=LIMIT
+2026-07-20 12:23:09 | ERROR    | [OMS_ERROR] oms_id=9843ee6d434d4600a8 | code=BROKER_ERROR | Token/Authorization not found
+2026-07-20 12:23:09 | ERROR    | [ERROR]    oms_id=9843ee6d434d4600a8 | SENSEX2672379000CE | BROKER_ERROR | Token/Authorization not found
+2026-07-20 12:23:59 | INFO     | [QUEUED]   oms_id=b336a5b199324323be | signal_id=9288fe4e31564d1188230f64be8e2c77 | SENSEX2672379000CE | side=BUY | qty=20 | type=LIMIT
+2026-07-20 12:24:01 | ERROR    | [OMS_ERROR] oms_id=b336a5b199324323be | code=BROKER_ERROR | Token/Authorization not found
+2026-07-20 12:24:01 | ERROR    | [ERROR]    oms_id=b336a5b199324323be | SENSEX2672379000CE | BROKER_ERROR | Token/Authorization not found
