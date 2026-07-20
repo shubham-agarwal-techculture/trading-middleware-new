@@ -1,11 +1,11 @@
-﻿        const API_BASE = window.API_BASE || 'http://localhost:5002';
+        const API_BASE = window.API_BASE || 'http://localhost:5002';
         let historyCache = [];
 
         /* ---------- theme ---------- */
         function applyTheme(theme) {
             document.documentElement.setAttribute('data-theme', theme);
             const btn = document.getElementById('theme-btn');
-            if (btn) btn.textContent = theme === 'dark' ? 'â˜€ï¸' : 'ðŸŒ™';
+            if (btn) btn.textContent = theme === 'dark' ? '\u2600\uFE0F' : '\u{1F319}';
         }
         function toggleTheme() {
             const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -21,21 +21,21 @@
 
         /* ---------- helpers ---------- */
         function fmtNum(v, digits = 2) {
-            if (v === null || v === undefined || Number.isNaN(Number(v))) return 'â€”';
+            if (v === null || v === undefined || Number.isNaN(Number(v))) return '\u2014';
             return Number(v).toLocaleString('en-IN', { minimumFractionDigits: digits, maximumFractionDigits: digits });
         }
         function fmtMoney(v) {
-            if (v === null || v === undefined || Number.isNaN(Number(v))) return 'â‚¹â€”';
+            if (v === null || v === undefined || Number.isNaN(Number(v))) return '\u20B9\u2014';
             const n = Number(v);
             const sign = n < 0 ? '-' : '';
-            return `${sign}â‚¹${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            return `${sign}\u20B9${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
         function pnlClass(v) {
             if (v === null || v === undefined || Number.isNaN(Number(v))) return '';
             return Number(v) > 0 ? 'pos' : Number(v) < 0 ? 'neg' : '';
         }
         function fmtDate(s) {
-            if (!s) return 'â€”';
+            if (!s) return '\u2014';
             const iso = s + (s.includes('+') || s.endsWith('Z') ? '' : 'Z');
             const d = new Date(iso);
             if (Number.isNaN(d.getTime())) return s;
@@ -113,7 +113,7 @@
                     let pnl = dv.kind === 'pnl' ? dv.value : computePnl(p);
                     if (pnl !== null && pnl !== undefined && Number.isFinite(Number(pnl))) { totalUnrealized += Number(pnl); hasUnrealized = true; }
 
-                    const seg = p.exchange_segment || 'â€”';
+                    const seg = p.exchange_segment || '\u2014';
                     const side = (p.side || 'BUY').toUpperCase();
                     const sqBtn = isFilled ? `<button class="btn danger" onclick="squareOff('${key}')">Square Off</button>` : '';
 
@@ -125,10 +125,10 @@
                             </td>
                             <td><span class="badge seg">${seg}</span></td>
                             <td><span class="badge ${side.toLowerCase()}">${side}</span></td>
-                            <td class="num">${p.qty ?? 'â€”'}</td>
+                            <td class="num">${p.qty ?? '\u2014'}</td>
                             <td class="num">${fmtNum(entry)}</td>
                             <td class="num">${fmtNum(ltp)}</td>
-                            <td class="num ${pnlClass(pnl)}">${pnl === null || pnl === undefined ? 'â€”' : fmtMoney(pnl)}</td>
+                            <td class="num ${pnlClass(pnl)}">${pnl === null || pnl === undefined ? '\u2014' : fmtMoney(pnl)}</td>
                             <td><span class="badge ${status.toLowerCase()}">${status || 'N/A'}</span></td>
                             <td>${fmtDate(p.opened_at)}</td>
                             <td>${sqBtn}</td>
@@ -137,9 +137,9 @@
             }
 
             document.getElementById('kpi-open').textContent = openCount;
-            document.getElementById('kpi-open-sub').textContent = `${filledCount} filled Â· ${pendingCount} pending`;
+            document.getElementById('kpi-open-sub').textContent = `${filledCount} filled \u00B7 ${pendingCount} pending`;
             const uEl = document.getElementById('kpi-unrealized');
-            uEl.textContent = hasUnrealized ? fmtMoney(totalUnrealized) : 'â‚¹â€”';
+            uEl.textContent = hasUnrealized ? fmtMoney(totalUnrealized) : '\u20B9\u2014';
             uEl.className = 'value ' + pnlClass(hasUnrealized ? totalUnrealized : null);
         }
 
@@ -177,12 +177,25 @@
             const isLimit = document.getElementById('o-ordertype').value === 'LIMIT';
             document.getElementById('field-limit').classList.toggle('hidden', !isLimit);
         }
+        function updateActionHint() {
+            const action = document.getElementById('o-action').value;
+            const hint = document.getElementById('action-hint');
+            if (!hint) return;
+            if (action === 'SELL') {
+                hint.textContent = 'SELL closes an existing long (square-off). It will not open a short.';
+                hint.classList.add('warn');
+            } else {
+                hint.textContent = 'BUY opens a long. Shorts are not supported.';
+                hint.classList.remove('warn');
+            }
+        }
         function resetOrderForm() {
             document.getElementById('order-form').reset();
             const r = document.getElementById('order-result');
             r.className = 'order-result';
             r.textContent = '';
             toggleLimitPrice();
+            updateActionHint();
         }
         async function submitOrder(evt) {
             evt.preventDefault();
@@ -212,7 +225,7 @@
                 payload.exchange_instrument_id = Number(iid);
             }
 
-            btn.disabled = true; btn.textContent = 'Submittingâ€¦';
+            btn.disabled = true; btn.textContent = 'Submitting\u2026';
             try {
                 const res = await fetch(`${API_BASE}/signal`, {
                     method: 'POST',
@@ -289,12 +302,12 @@
                 if (pnl !== null) { realized += pnl; realizedCount++; if (pnl > 0) wins++; }
             });
             const rEl = document.getElementById('kpi-realized');
-            rEl.textContent = realizedCount ? fmtMoney(realized) : 'â‚¹â€”';
+            rEl.textContent = realizedCount ? fmtMoney(realized) : '\u20B9\u2014';
             rEl.className = 'value ' + pnlClass(realizedCount ? realized : null);
             document.getElementById('kpi-trades').textContent = (historyCache || []).length;
             document.getElementById('kpi-winrate').textContent = realizedCount
                 ? `Win rate: ${((wins / realizedCount) * 100).toFixed(0)}% (${wins}/${realizedCount})`
-                : 'Win rate: â€”';
+                : 'Win rate: \u2014';
 
             if (items.length === 0) {
                 body.innerHTML = '';
@@ -312,13 +325,13 @@
                 const exit = i.current_ltp ?? i.ltp ?? i.exit_price;
                 return `
                     <tr>
-                        <td><div class="instrument-name">${i.instrument || 'â€”'}</div><div class="instrument-sub">ID: ${i.exchange_instrument_id ?? 'â€”'}</div></td>
-                        <td><span class="badge seg">${i.exchange_segment || 'â€”'}</span></td>
+                        <td><div class="instrument-name">${i.instrument || '\u2014'}</div><div class="instrument-sub">ID: ${i.exchange_instrument_id ?? '\u2014'}</div></td>
+                        <td><span class="badge seg">${i.exchange_segment || '\u2014'}</span></td>
                         <td><span class="badge ${side.toLowerCase()}">${side}</span></td>
-                        <td class="num">${i.qty ?? 'â€”'}</td>
+                        <td class="num">${i.qty ?? '\u2014'}</td>
                         <td class="num">${fmtNum(i.entry_price)}</td>
                         <td class="num">${fmtNum(exit)}</td>
-                        <td class="num ${pnlClass(pnl)}">${pnl === null ? 'â€”' : fmtMoney(pnl)}</td>
+                        <td class="num ${pnlClass(pnl)}">${pnl === null ? '\u2014' : fmtMoney(pnl)}</td>
                         <td><span class="badge ${status.toLowerCase()}">${status || 'N/A'}</span></td>
                         <td>${fmtDate(i.opened_at)}</td>
                         <td>${fmtDate(i.closed_at)}</td>
@@ -334,6 +347,7 @@
         }
 
         toggleLimitPrice();
+        updateActionHint();
         refreshAll();
         setInterval(() => {
             if (!document.getElementById('autorefresh').checked) return;

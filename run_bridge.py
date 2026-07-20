@@ -47,8 +47,15 @@ async def main():
     log.info("Configuration: port=%d", state.http_port)
 
     log.info("Fetching initial ATM data...")
-    state.atm_data = await get_atm_data()
-    log.info("Initial ATM data loaded: strike=%d", state.atm_data["atm_strike"])
+    try:
+        state.atm_data = await get_atm_data()
+        log.info("Initial ATM data loaded: strike=%d", state.atm_data["atm_strike"])
+    except Exception as e:
+        state.atm_data = None
+        log.warning(
+            "Initial ATM fetch failed (%s); bridge will start anyway and retry on demand",
+            e,
+        )
 
     state.loop = asyncio.get_running_loop()
     state.client = OMSClient(
@@ -60,7 +67,11 @@ async def main():
     log.info(
         "Connecting to OMS at push=%s sub=%s...", state.OMS_PUSH, state.OMS_SUB
     )
-    await state.client.connect()
+    try:
+        await state.client.connect()
+    except Exception as e:
+        log.error("Failed to connect to OMS: %s", e)
+        raise
     state.client.on_response(on_oms_response)
 
     log.info("OMS Client connected. Starting HTTP thread...")
@@ -68,6 +79,10 @@ async def main():
     threading.Thread(target=periodic_cleanup, daemon=True).start()
 
     log.info("Signal Bridge is fully operational. Press Ctrl+C to terminate.")
+    if state.atm_data is None:
+        log.warning(
+            "Running without ATM data; ATM CE/PE signals will retry market data on each request."
+        )
     log.info("  POST /signal | GET /status | GET /positions | GET /alerts | GET /history | POST /squareoff")
 
     try:
@@ -78,7 +93,11 @@ async def main():
     finally:
         log.info("Shutting down...")
         state.cleanup_stop_event.set()
-        await state.client.disconnect()
+        if state.client is not None:
+            try:
+                await state.client.disconnect()
+            except Exception as e:
+                log.warning("Error during OMS disconnect: %s", e)
         log.info("Shutdown complete.")
 
 
@@ -87,3 +106,6 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         log.info("Bridge stopped by user.")
+    except Exception:
+        log.exception("Bridge exited due to an unhandled error")
+        raise

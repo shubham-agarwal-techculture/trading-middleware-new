@@ -224,6 +224,7 @@
         }
         .field input:focus, .field select:focus { border-color: var(--accent-strong); box-shadow: 0 0 0 3px var(--green-bg); }
         .field .hint { font-size: 11px; color: var(--muted); }
+        .field .hint.warn { color: var(--amber); }
         .seg-toggle { display: inline-flex; background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; padding: 3px; }
         .seg-toggle button { background: transparent; border: none; color: var(--muted); padding: 7px 16px; cursor: pointer; font-weight: 700; font-size: 13px; border-radius: 999px; transition: all 0.15s; }
         .seg-toggle button.active { background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%); color: var(--accent-text); }

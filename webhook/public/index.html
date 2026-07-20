@@ -113,10 +113,11 @@
                         </div>
                         <div class="field">
                             <label>Action</label>
-                            <select id="o-action">
-                                <option value="BUY">BUY</option>
-                                <option value="SELL">SELL</option>
+                            <select id="o-action" onchange="updateActionHint()">
+                                <option value="BUY">BUY (open long)</option>
+                                <option value="SELL">SELL (square-off only)</option>
                             </select>
+                            <span class="hint" id="action-hint">BUY opens a long. Shorts are not supported.</span>
                         </div>
                         <div class="field">
                             <label>Position</label>
@@ -124,6 +125,7 @@
                                 <option value="long">long</option>
                                 <option value="flat">flat (square-off)</option>
                             </select>
+                            <span class="hint">Long-only book: SELL / flat close an existing long; they do not open a short.</span>
                         </div>
                         <div class="field">
                             <label>Quantity</label>

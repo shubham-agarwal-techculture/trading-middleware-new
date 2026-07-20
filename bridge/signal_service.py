@@ -204,11 +204,18 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
             contract = _contract_from_master(contract_data)
         else:
             if state.atm_data is None:
-                state.atm_data = await get_atm_data()
-                print(state.atm_data["atm_strike"])
-                log.info(
-                    "Fetched live ATM data: strike=%d", state.atm_data["atm_strike"]
-                )
+                try:
+                    state.atm_data = await get_atm_data()
+                    log.info(
+                        "Fetched live ATM data: strike=%d",
+                        state.atm_data["atm_strike"],
+                    )
+                except Exception as e:
+                    log.exception("ATM data fetch failed")
+                    return {
+                        "status": "error",
+                        "message": f"Could not fetch ATM data: {e}",
+                    }
 
             if option_type == "CE":
                 contract_data = state.atm_data["ce_contract"]

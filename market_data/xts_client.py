@@ -81,51 +81,68 @@ class XTSMarketDataClient:
 
         try:
             quote_url = f"{self.rest_url}/instruments/quotes"
-            headers_variants = [
-                {
-                    "xts-api-key": self.api_key,
-                    "Authorization": self.access_token,
-                    "Content-Type": "application/json",
-                },
-            ]
-            payload = {
-                "instruments": [
-                    {
-                        "exchangeSegment": segment_to_code(exchange_segment),
-                        "exchangeInstrumentID": exchange_instrument_id,
-                    }
-                ],
-                "xtsMessageCode": 1501,
-                "publishFormat": "JSON",
+            headers = {
+                "xts-api-key": self.api_key,
+                "Authorization": self.access_token,
+                "Content-Type": "application/json",
             }
+            # 1501 = touchline snapshot, 1512 = LTP event. Some servers have no
+            # touchline cached for an instrument (e.g. after a restart outside
+            # market hours) but still answer the LTP message code.
+            message_codes = [1501, 1512]
 
-            for i, headers in enumerate(headers_variants):
+            for message_code in message_codes:
+                payload = {
+                    "instruments": [
+                        {
+                            "exchangeSegment": segment_to_code(exchange_segment),
+                            "exchangeInstrumentID": exchange_instrument_id,
+                        }
+                    ],
+                    "xtsMessageCode": message_code,
+                    "publishFormat": "JSON",
+                }
                 async with self.session.post(
                     quote_url, json=payload, headers=headers, verify_ssl=False
                 ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        list_quotes = data["result"]["listQuotes"]
-                        if list_quotes:
-                            quote = json.loads(list_quotes[0])
-                            ltp = quote["LastTradedPrice"]
-                            if ltp is not None:
-                                return float(ltp)
-                            log.warning("No LTP in quote response")
-                            return None
-                        log.warning("No quotes in response: %s", data)
-                        return None
+                    if response.status != 200:
+                        error_text = await response.text()
+                        log.warning(
+                            "HTTP %d for message code %d: %s",
+                            response.status,
+                            message_code,
+                            error_text,
+                        )
+                        continue
 
-                    error_text = await response.text()
-                    log.warning(
-                        "HTTP %d with variant %d: %s",
-                        response.status,
-                        i + 1,
-                        error_text,
-                    )
-                    if i == len(headers_variants) - 1:
-                        log.error("All authentication variants failed")
-                        return None
+                    data = await response.json()
+                    list_quotes = data["result"]["listQuotes"]
+                    if not list_quotes:
+                        log.warning(
+                            "No quotes for message code %d: %s", message_code, data
+                        )
+                        continue
+
+                    quote = json.loads(list_quotes[0])
+                    ltp = quote.get("LastTradedPrice")
+                    if ltp is not None:
+                        return float(ltp)
+                    close = quote.get("Close")
+                    if close is not None:
+                        log.warning(
+                            "No LTP for instrument %d; using Close price %s",
+                            exchange_instrument_id,
+                            close,
+                        )
+                        return float(close)
+                    log.warning("No LTP in quote response: %s", quote)
+
+            log.error(
+                "No quote data available for instrument %d (tried message codes %s)",
+                exchange_instrument_id,
+                message_codes,
+            )
+            return None
         except Exception as e:
             log.error(
                 "Error getting LTP for instrument ID %d: %s", exchange_instrument_id, e
