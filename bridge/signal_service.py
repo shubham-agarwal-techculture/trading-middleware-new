@@ -331,8 +331,16 @@ async def handle_signal(signal: Dict[str, Any]) -> Dict[str, Any]:
                 "signal_id": sig_id,
                 "message": "Order submitted, waiting for fill confirmation",
                 "instrument": contract["instrument_name"],
+                "exchange_segment": contract["exchange_segment"],
+                "exchange_instrument_id": contract["exchange_instrument_id"],
                 "quantity": quantity,
                 "limit_price": limit_price,
+                "order_type": order_type,
+                "product_type": product_type,
+                "order_side": action,
+                "position": position,
+                "option_type": contract.get("option_type"),
+                "strike": contract.get("strike"),
             }
 
         return {"status": "error", "message": f"Unsupported action: {action}"}
@@ -388,6 +396,12 @@ async def _squareoff_existing(
             "msg_type": "SQUAREOFF",
             "signal_id": sig_id,
             "instrument": contract["instrument_name"],
+            "exchange_segment": contract["exchange_segment"],
+            "exchange_instrument_id": contract["exchange_instrument_id"],
+            "quantity": pos_qty,
+            "order_side": reverse_side,
+            "order_type": "MARKET",
+            "product_type": product_type,
             "timestamp": get_ist_now(),
             "response": ack,
         }
@@ -398,6 +412,12 @@ async def _squareoff_existing(
         "message": "Squareoff sent but not confirmed",
         "signal_id": sig_id,
         "instrument": contract["instrument_name"],
+        "exchange_segment": contract.get("exchange_segment"),
+        "exchange_instrument_id": contract.get("exchange_instrument_id"),
+        "quantity": pos_qty,
+        "order_side": reverse_side,
+        "order_type": "MARKET",
+        "product_type": product_type,
     }
 
 

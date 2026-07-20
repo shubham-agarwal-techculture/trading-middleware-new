@@ -5,24 +5,29 @@ from __future__ import annotations
 import logging
 import logging.handlers
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 import structlog
 
 # Set once per process when logging is initialised (each OMS start).
 _session_datetime: Optional[str] = None
+_log_timezone: str = "Asia/Kolkata"
+
+
+def _zoneinfo(timezone: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(timezone)
+    except Exception:
+        return ZoneInfo("UTC")
 
 
 def session_datetime_str(timezone: str = "Asia/Kolkata") -> str:
     """Timestamp string for log filenames, e.g. ``20260520_120729``."""
-    try:
-        tz = ZoneInfo(timezone)
-    except Exception:
-        tz = ZoneInfo("UTC")
-    return datetime.now(tz).strftime("%Y%m%d_%H%M%S")
+    return datetime.now(_zoneinfo(timezone)).strftime("%Y%m%d_%H%M%S")
 
 
 def resolve_log_filename(template: str, dt: Optional[str] = None) -> str:
@@ -39,6 +44,42 @@ def resolve_log_filename(template: str, dt: Optional[str] = None) -> str:
     )
 
 
+def _make_timestamper(timezone: str) -> Callable[..., dict]:
+    """structlog processor that stamps events in the configured timezone (IST by default)."""
+
+    tz = _zoneinfo(timezone)
+
+    def timestamper(
+        logger: Any, method_name: str, event_dict: dict
+    ) -> dict:
+        event_dict["timestamp"] = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+        return event_dict
+
+    return timestamper
+
+
+def _formatter_converter(timezone: str) -> Callable[[Optional[float]], time.struct_time]:
+    """``logging.Formatter.converter`` that renders asctime in *timezone*."""
+
+    tz = _zoneinfo(timezone)
+
+    def converter(secs: Optional[float] = None) -> time.struct_time:
+        if secs is None:
+            secs = time.time()
+        return datetime.fromtimestamp(secs, tz).timetuple()
+
+    return converter
+
+
+def _stdlib_formatter(timezone: str) -> logging.Formatter:
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)-8s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    formatter.converter = _formatter_converter(timezone)  # type: ignore[assignment]
+    return formatter
+
+
 def setup_logging(
     level: str = "INFO",
     log_dir: str = "./logs",
@@ -51,14 +92,16 @@ def setup_logging(
     Configure structlog with console + per-session file output.
 
     Each OMS start creates a new log file when ``log_file`` contains
-    ``{datetime}`` (default).
+    ``{datetime}`` (default). Log line timestamps use *timezone*
+    (default ``Asia/Kolkata`` / IST).
 
     Returns
     -------
     (log_path, session_datetime) — absolute path and stamp used in the name.
     """
-    global _session_datetime
-    _session_datetime = session_datetime_str(timezone)
+    global _session_datetime, _log_timezone
+    _log_timezone = timezone or "Asia/Kolkata"
+    _session_datetime = session_datetime_str(_log_timezone)
     resolved_name = resolve_log_filename(log_file, _session_datetime)
 
     log_level = getattr(logging, level.upper(), logging.INFO)
@@ -74,12 +117,6 @@ def setup_logging(
     file_handler = logging.FileHandler(log_path, encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)
 
-    fmt = "%(asctime)s | %(levelname)-8s | %(message)s"
-    date_fmt = "%Y-%m-%d %H:%M:%S"
-    formatter = logging.Formatter(fmt, datefmt=date_fmt)
-    console_handler.setFormatter(formatter)
-    file_handler.setFormatter(formatter)
-
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
     root.handlers.clear()
@@ -90,11 +127,12 @@ def setup_logging(
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-    # ---------- structlog ----------
+    # ---------- structlog (IST timestamps) ----------
+    timestamper = _make_timestamper(_log_timezone)
     shared_processors = [
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
-        structlog.processors.TimeStamper(fmt="iso", utc=True),
+        timestamper,
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.contextvars.merge_contextvars,
@@ -110,9 +148,15 @@ def setup_logging(
     )
 
     # Attach a ProcessorFormatter to the root handler so structlog
-    # records get rendered with key=value pairs.
+    # records get rendered with key=value pairs. Foreign (stdlib) records
+    # also get an IST timestamp via foreign_pre_chain.
     proc_formatter = structlog.stdlib.ProcessorFormatter(
         processor=structlog.dev.ConsoleRenderer(colors=False),
+        foreign_pre_chain=[
+            timestamper,
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.add_logger_name,
+        ],
     )
     for handler in root.handlers:
         handler.setFormatter(proc_formatter)
@@ -155,11 +199,7 @@ def get_strategy_logger(strategy_id: str, log_dir: str = "./logs") -> logging.Lo
         encoding="utf-8",
     )
     handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)-8s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    handler.setFormatter(formatter)
+    handler.setFormatter(_stdlib_formatter(_log_timezone))
     logger.addHandler(handler)
 
     _strategy_loggers[strategy_id] = logger
@@ -178,7 +218,8 @@ def get_xts_logger(
     Dedicated logger for all XTS REST and Socket.IO traffic.
 
     Uses the same ``{datetime}`` stamp as :func:`setup_logging` when
-    ``session_datetime`` is omitted.
+    ``session_datetime`` is omitted. Timestamps use the timezone from
+    :func:`setup_logging` (default IST).
 
     Returns
     -------
@@ -202,11 +243,7 @@ def get_xts_logger(
     log_path = Path(log_dir) / resolved_name
     handler = logging.FileHandler(log_path, encoding="utf-8")
     handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)-8s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    handler.setFormatter(formatter)
+    handler.setFormatter(_stdlib_formatter(_log_timezone))
     logger.addHandler(handler)
 
     _xts_logger = logger

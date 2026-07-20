@@ -30,3 +30,18 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2026-07-17 17:50:16 | INFO     | [QUEUED]   oms_id=c33a214fda7d494880 | signal_id=753f12d00e5d4c7da002de541ae67e0d | GOLD29JUL2026142000CE | side=BUY | qty=1 | type=LIMIT
 2026-07-17 17:50:17 | ERROR    | [OMS_ERROR] oms_id=c33a214fda7d494880 | code=BROKER_ERROR | Algo details not found for segment MCXFO
 2026-07-17 17:50:17 | ERROR    | [ERROR]    oms_id=c33a214fda7d494880 | GOLD29JUL2026142000CE | BROKER_ERROR | Algo details not found for segment MCXFO
+2026-07-20 09:44:25 | INFO     | [QUEUED]   oms_id=919bcb13e7544bc2a5 | signal_id=c2a70fcda2cc4ce180447e1c67607bf6 | NIFTY2672124150CE | side=BUY | qty=65 | type=LIMIT
+2026-07-20 09:44:26 | ERROR    | [OMS_ERROR] oms_id=919bcb13e7544bc2a5 | code=BROKER_ERROR | Token/Authorization not found
+2026-07-20 09:44:26 | ERROR    | [ERROR]    oms_id=919bcb13e7544bc2a5 | NIFTY2672124150CE | BROKER_ERROR | Token/Authorization not found
+2026-07-20 09:47:48 | INFO     | [QUEUED]   oms_id=398693436aad4fbfa7 | signal_id=a640587417ee48359ef45ae863257893 | NIFTY2672124150CE | side=BUY | qty=65 | type=LIMIT
+2026-07-20 09:47:49 | ERROR    | [OMS_ERROR] oms_id=398693436aad4fbfa7 | code=BROKER_ERROR | Token/Authorization not found
+2026-07-20 09:47:49 | ERROR    | [ERROR]    oms_id=398693436aad4fbfa7 | NIFTY2672124150CE | BROKER_ERROR | Token/Authorization not found
+2026-07-20 10:14:21 | INFO     | [QUEUED]   oms_id=b58f683c28544cfb91 | signal_id=cdc74df7bb584f5ba5ac3b5bde8d7bad | NIFTY2672124200CE | side=BUY | qty=65 | type=LIMIT
+2026-07-20 10:14:21 | INFO     | [ACK]      oms_id=b58f683c28544cfb91 | broker_id=1110032468 | NIFTY2672124200CE | side=BUY | qty=65
+2026-07-20 10:14:47 | WARNING  | [REJECTED]  oms_id=b58f683c28544cfb91 | NIFTY2672124200CE | reason=OEMS:RMS : CashToCollateralRatio :  - Cash is insufficient:  Required Additional [2788.62] in form of Cash. TotalRequired Cash : 2788.625, Cash Present : 0 for entity [Client]-[WD1768] across [ALL|ALL|ALL]
+2026-07-20 10:19:09 | INFO     | [QUEUED]   oms_id=ee6f62fe0b6c480ab8 | signal_id=9010ec07cbe148b4b41abfed218e8b76 | GOLDM29JUL2026149000CE | side=BUY | qty=1 | type=LIMIT
+2026-07-20 10:19:10 | ERROR    | [OMS_ERROR] oms_id=ee6f62fe0b6c480ab8 | code=BROKER_ERROR | Algo details not found for segment MCXFO
+2026-07-20 10:19:10 | ERROR    | [ERROR]    oms_id=ee6f62fe0b6c480ab8 | GOLDM29JUL2026149000CE | BROKER_ERROR | Algo details not found for segment MCXFO
+2026-07-20 10:32:19 | INFO     | [QUEUED]   oms_id=9fa9272093e14f68a8 | signal_id=f428d10150d945af90515f7d68e2b878 | GOLDM29JUL2026149000CE | side=BUY | qty=2 | type=LIMIT
+2026-07-20 10:32:20 | ERROR    | [OMS_ERROR] oms_id=9fa9272093e14f68a8 | code=BROKER_ERROR | Token/Authorization not found
+2026-07-20 10:32:20 | ERROR    | [ERROR]    oms_id=9fa9272093e14f68a8 | GOLDM29JUL2026149000CE | BROKER_ERROR | Token/Authorization not found

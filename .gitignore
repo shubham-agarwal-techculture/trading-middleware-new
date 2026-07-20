@@ -14,3 +14,4 @@ config.yaml
 .env.development.local
 .env.test.local
 .env.production.local
+.bridge_http_port

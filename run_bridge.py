@@ -78,7 +78,11 @@ async def main():
     threading.Thread(target=run_http_server, daemon=True).start()
     threading.Thread(target=periodic_cleanup, daemon=True).start()
 
+    # Give the HTTP thread a moment to bind (and possibly auto-select a port).
+    await asyncio.sleep(0.3)
+
     log.info("Signal Bridge is fully operational. Press Ctrl+C to terminate.")
+    log.info("HTTP API on port %d", state.http_port)
     if state.atm_data is None:
         log.warning(
             "Running without ATM data; ATM CE/PE signals will retry market data on each request."

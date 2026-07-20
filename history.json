@@ -1,6 +1,20 @@
 [
     {
         "side": "BUY",
+        "qty": 65,
+        "instrument": "NIFTY2672124200CE",
+        "exchange_instrument_id": 57348,
+        "exchange_segment": "NSEFO",
+        "opened_at": "2026-07-20T10:14:21.561741+05:30",
+        "signal_id": "cdc74df7bb584f5ba5ac3b5bde8d7bad",
+        "oms_order_id": "b58f683c28544cfb91",
+        "status": "REJECTED",
+        "entry_price": 85.65,
+        "final_status": "REJECTED",
+        "closed_at": "2026-07-20T10:14:48.326875+05:30"
+    },
+    {
+        "side": "BUY",
         "qty": 20,
         "instrument": "SENSEX2672381100CE",
         "exchange_instrument_id": 835491,

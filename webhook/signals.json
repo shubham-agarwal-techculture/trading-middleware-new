@@ -842,5 +842,71 @@
     "productType": "MIS",
     "timestamp": 1784290194634,
     "receivedAt": "2026-07-17T12:09:54.634Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "symbol": "NIFTY260714P23800",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784518915528,
+    "receivedAt": "2026-07-20T03:41:55.528Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784519034989,
+    "receivedAt": "2026-07-20T03:43:54.989Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784520865056,
+    "receivedAt": "2026-07-20T04:14:25.056Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784521068409,
+    "receivedAt": "2026-07-20T04:17:48.409Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 65,
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784522661469,
+    "receivedAt": "2026-07-20T04:44:21.469Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 1,
+    "symbol": "GOLDM260729C149000",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784522948523,
+    "receivedAt": "2026-07-20T04:49:08.523Z"
+  },
+  {
+    "action": "BUY",
+    "position": "long",
+    "quantity": 2,
+    "symbol": "GOLDM260729C149000",
+    "orderType": "LIMIT",
+    "productType": "MIS",
+    "timestamp": 1784523739695,
+    "receivedAt": "2026-07-20T05:02:19.695Z"
   }
 ]

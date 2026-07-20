@@ -268,11 +268,91 @@
                 container.innerHTML = '<div class="no-data">No alerts</div>';
                 return;
             }
-            container.innerHTML = alerts.map(a => `
-                <div class="alert-item ${(a.type || '').toLowerCase()}">
-                    <div class="alert-timestamp">${fmtDate(a.timestamp)}</div>
-                    <div class="alert-message">${a.message || ''}</div>
-                </div>`).join('');
+            const dash = '\u2014';
+            const show = (v) => (v === null || v === undefined || v === '' ? dash : String(v));
+            container.innerHTML = alerts.map((a, idx) => {
+                const order = a.order || {};
+                const data = a.data || {};
+                const result = a.result || {};
+                const fields = [
+                    ['Action', order.action || data.action || order.order_side],
+                    ['Position', order.position || data.position],
+                    ['Instrument', order.instrument || data.symbol || data.ticker],
+                    ['Symbol', order.symbol || data.symbol || data.ticker],
+                    ['Segment', order.exchange_segment || data.exchange_segment || data.exchangeSegment],
+                    ['Instrument ID', order.exchange_instrument_id || data.exchange_instrument_id || data.exchangeInstrumentID],
+                    ['Qty', order.quantity ?? data.quantity],
+                    ['Side', order.order_side || data.action],
+                    ['Order Type', order.order_type || data.orderType || data.order_type],
+                    ['Product', order.product_type || data.productType || data.product_type],
+                    ['Limit', order.limit_price ?? data.limitPrice ?? data.limit_price],
+                    ['Stop', order.stop_price ?? data.stopPrice ?? data.stop_price],
+                    ['Option', order.option_type || data.optionType],
+                    ['Strike', order.strike],
+                    ['Signal ID', order.signal_id || result.signal_id],
+                    ['Status', order.status || result.status],
+                    ['Result', order.result_message || result.message],
+                ];
+
+                const action = show(fields[0][1]);
+                const instrument = show(fields[2][1]);
+                const qty = show(fields[6][1]);
+                const status = show(fields[15][1]);
+
+                const detailsHtml = `<div class="alert-details" id="alert-details-${idx}" hidden>${fields.map(([label, value]) => {
+                    const text = show(value);
+                    const empty = text === dash;
+                    return `
+                        <div class="alert-detail${empty ? ' empty' : ''}">
+                            <span class="alert-detail-label">${escapeHtml(label)}</span>
+                            <span class="alert-detail-value">${escapeHtml(text)}</span>
+                        </div>`;
+                }).join('')}</div>`;
+
+                const statusClass = String(order.status || result.status || '').toLowerCase();
+                return `
+                <div class="alert-item compact ${(a.type || '').toLowerCase()} ${statusClass}">
+                    <div class="alert-header">
+                        <div class="alert-title-row">
+                            <span class="badge ${(a.type || 'signal').toLowerCase()}">${escapeHtml((a.type || 'SIGNAL').toUpperCase())}</span>
+                            <span class="alert-timestamp">${fmtDate(a.timestamp)}</span>
+                        </div>
+                        <button type="button" class="alert-toggle" aria-expanded="false"
+                            onclick="toggleAlertDetails(${idx}, this)">Details</button>
+                    </div>
+                    <div class="alert-message">${escapeHtml(a.message || '')}</div>
+                    <div class="alert-summary">
+                        <span class="alert-chip"><b>Action</b> ${escapeHtml(action)}</span>
+                        <span class="alert-chip"><b>Qty</b> ${escapeHtml(qty)}</span>
+                        <span class="alert-chip"><b>Status</b> ${escapeHtml(status)}</span>
+                        <span class="alert-chip grow"><b>Instrument</b> ${escapeHtml(instrument)}</span>
+                    </div>
+                    ${detailsHtml}
+                </div>`;
+            }).join('');
+        }
+        function toggleAlertDetails(idx, btn) {
+            const el = document.getElementById(`alert-details-${idx}`);
+            if (!el) return;
+            const open = el.hasAttribute('hidden');
+            if (open) {
+                el.removeAttribute('hidden');
+                btn.setAttribute('aria-expanded', 'true');
+                btn.textContent = 'Hide';
+                btn.closest('.alert-item')?.classList.add('expanded');
+            } else {
+                el.setAttribute('hidden', '');
+                btn.setAttribute('aria-expanded', 'false');
+                btn.textContent = 'Details';
+                btn.closest('.alert-item')?.classList.remove('expanded');
+            }
+        }
+        function escapeHtml(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
         }
 
         /* ---------- history ---------- */
